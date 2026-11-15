@@ -80,6 +80,24 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 6px;b
 @media(max-width:800px){.adm{grid-template-columns:minmax(0,1fr)}.side{position:static}.side .tabs{flex-direction:row;flex-wrap:wrap;overflow:visible;margin-bottom:8px}.side .tabs button{width:auto;padding:9px 11px;font-size:14px;gap:6px}.side .tabs button::before{width:auto}.side .who{display:none}.side .out{width:auto}}
 /* mode pemilih (hasil scan QR) */
 body.pemilih header{display:none}
+/* halaman memilih: seluruh menu muat satu layar (tanpa scroll), foto calon bisa diketuk */
+body.pemilih main{padding:10px 12px}
+.vfit{display:flex;flex-direction:column;gap:8px;height:calc(100vh - 20px);height:calc(100dvh - 20px);min-height:0}
+.vfit .vh{flex:none;background:linear-gradient(135deg,#064e3b,var(--pri));color:#fff;border-radius:14px;padding:8px 12px;text-align:center;line-height:1.25}
+.vfit .vh b{display:block;font-size:clamp(17px,4.4vw,26px)}
+.vfit .vh small{display:block;opacity:.9;font-size:clamp(11px,2.6vw,14px)}
+.vfit .vi{flex:none;background:var(--pri);color:#fff;border-radius:14px;padding:8px 12px;text-align:center;font-size:clamp(13px,3.2vw,18px);font-weight:600}
+.vfit .vg{flex:1;min-height:0;display:grid;gap:8px;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));grid-auto-rows:minmax(0,1fr)}
+@media(orientation:portrait){.vfit .vg.m{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.vfit .cand{display:flex;flex-direction:column;min-height:0;cursor:pointer;border-radius:14px;-webkit-tap-highlight-color:transparent}
+.vfit .cand:active{border-color:var(--pri)}
+.vfit .cand .ph{flex:1;min-height:0;aspect-ratio:auto;background-position:center top;font-size:44px}
+.vfit .cand .no{top:6px;left:6px;width:clamp(26px,6vw,40px);height:clamp(26px,6vw,40px);font-size:clamp(14px,3.4vw,22px)}
+.vfit .cand .in{flex:none;padding:5px 7px 7px;text-align:center}
+.vfit .cand .in b{font-size:clamp(12px,3vw,19px);line-height:1.15;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.vfit .cand .vm{background:none;border:0;color:var(--pri);font-weight:700;font-size:clamp(11px,2.6vw,14px);padding:2px 0;margin-top:2px;text-decoration:underline;cursor:pointer}
+.vfit .cand .btn{margin-top:4px;padding:clamp(6px,1.6vw,12px) 6px;font-size:clamp(13px,3.2vw,19px)}
+
 .vhead{background:linear-gradient(135deg,#064e3b,var(--pri));color:#fff;border-radius:18px;padding:18px;text-align:center;margin-bottom:14px}
 .vhead small{opacity:.85;display:block}.vhead h2{margin:4px 0;font-size:24px}
 .vstat{max-width:520px;margin:20px auto;text-align:center}
@@ -485,15 +503,21 @@ function vScan(r) {
   if (r.state === 'belum') return vStatus('⏳', 'Pemilihan belum dimulai', `Silakan scan kembali pada waktu pemilihan.${j ? '<br><b>' + esc(j) + '</b>' : ''}`);
   if (r.state === 'selesai') return vStatus('🔒', 'Pemilihan telah selesai', 'Waktu pemilihan sudah berakhir. QR Code ini tidak dapat digunakan lagi.');
   const calon = r.calon || [];
-  vTampil(`<div class="vhead"><small>Selamat datang</small><h2>${esc(r.nama)}</h2><small>Pemilihan Kepala Desa ${esc(r.desa)}</small></div>
-    <div class="card center" style="background:var(--pri);color:#fff"><h2 style="margin:0;font-size:26px">Silakan pilih satu calon</h2><div style="font-size:17px;margin-top:4px">Ketuk tombol <b>PILIH</b> pada calon pilihan Anda</div></div>
-    <div class="msg ok center">✔ Kehadiran Anda di TPS sudah tercatat.</div>
-    ${calon.length ? `<div class="cands">${calon.map(c => { const u = foto(c.Foto); return `<div class="cand">
+  const n = calon.length;
+  vTampil(`<div class="vfit"><div class="vh"><b>${esc(r.nama)}</b><small>Pemilihan Kepala Desa ${esc(r.desa)} · ✔ Kehadiran Anda sudah tercatat</small></div>
+    <div class="vi">Ketuk foto atau tombol <b>PILIH</b> pada calon pilihan Anda</div>
+    ${n ? `<div class="vg${n > 3 ? ' m' : ''}" style="--n:${Math.min(n, 5)}">${calon.map(c => { const u = foto(c.Foto); return `<div class="cand" onclick="vKonfirmasi('${c.ID}')">
       <div class="no">${esc(c.NoUrut)}</div><div class="ph" ${u ? `style="background-image:url('${esc(u)}')"` : ''}>${u ? '' : '👤'}</div>
-      <div class="in"><b style="font-size:20px">${esc(c.Nama)}</b>
-      ${c.Visi || c.Misi ? `<details><summary>Lihat Visi &amp; Misi</summary>${c.Visi ? `<p><b>Visi:</b> ${esc(c.Visi)}</p>` : ''}${c.Misi ? `<p style="white-space:pre-line"><b>Misi:</b> ${esc(c.Misi)}</p>` : ''}</details>` : ''}
-      <button class="btn" onclick="vKonfirmasi('${c.ID}')">PILIH No. ${esc(c.NoUrut)}</button></div></div>`; }).join('')}</div>` : '<div class="card empty">Belum ada calon untuk desa ini. Hubungi panitia.</div>'}`);
+      <div class="in"><b>${esc(c.Nama)}</b>
+      ${c.Visi || c.Misi ? `<button class="vm" onclick="event.stopPropagation();vVisi('${c.ID}')">Visi &amp; Misi</button>` : ''}
+      <button class="btn" onclick="event.stopPropagation();vKonfirmasi('${c.ID}')">PILIH No. ${esc(c.NoUrut)}</button></div></div>`; }).join('')}</div>` : '<div class="card empty">Belum ada calon untuk desa ini. Hubungi panitia.</div>'}</div>`);
   S.vCalon = calon;
+}
+function vVisi(id) {
+  const c = (S.vCalon || []).find(x => x.ID === id); if (!c) return;
+  modal(`<h3 style="margin:0 0 8px">No. ${esc(c.NoUrut)} — ${esc(c.Nama)}</h3>
+    ${c.Visi ? `<p><b>Visi:</b> ${esc(c.Visi)}</p>` : ''}${c.Misi ? `<p style="white-space:pre-line"><b>Misi:</b> ${esc(c.Misi)}</p>` : ''}
+    <div class="row" style="margin-top:12px"><button class="btn sec" onclick="closeModal()">Tutup</button><button class="btn" style="flex:1" onclick="closeModal();vKonfirmasi('${c.ID}')">PILIH No. ${esc(c.NoUrut)}</button></div>`);
 }
 function vKonfirmasi(id) {
   const c = (S.vCalon || []).find(x => x.ID === id); if (!c) return;
