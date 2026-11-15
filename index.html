@@ -95,7 +95,9 @@ body.pemilih header{display:none}
 .und .ub{flex:1;min-height:0;display:flex;gap:6mm}
 .und .uc1{flex:none;width:66mm;display:flex;flex-direction:column;gap:3mm}
 .und .ui div{display:flex;font-size:10.5pt}.und .ui span:first-child{width:30mm;flex:none}.und .ui span:last-child{min-width:0;word-break:break-word}
-.und .uq{width:42mm;height:42mm;border:1.5px solid #000;display:flex;align-items:center;justify-content:center;margin-top:auto}
+.und .uq{width:42mm;height:42mm;border:1.5px solid #000;display:flex;align-items:center;justify-content:center;margin-top:3mm}
+.und .ulk{font-size:7.5pt;line-height:1.2;word-break:break-all;margin-top:1.5mm;font-weight:700}
+.und .uct{text-align:center;font-weight:800;font-size:10.5pt;margin-bottom:1.5mm}
 .und .uq img{width:39mm;height:39mm;image-rendering:pixelated;image-rendering:crisp-edges}
 .und .uc2{flex:1;min-width:0;display:flex;flex-direction:column;gap:3mm}
 .und .cb{border:1.5px solid #000;padding:2.5mm;display:flex;gap:3mm;justify-content:center;align-items:flex-start;height:40mm;box-sizing:border-box;overflow:hidden}
@@ -431,7 +433,6 @@ function renderDash() {
     <div class="stats">
       <div class="stat"><b>${p.desa.length}</b><span>Desa</span></div>
       <div class="stat"><b>${sum('dpt')}</b><span>Pemilih terdaftar</span></div>
-      <div class="stat"><b>${sum('hadir')}</b><span>Hadir di TPS</span></div>
       <div class="stat"><b style="color:#1e40af">${sum('sudah')}</b><span>Sudah memilih</span></div>
     </div>
     ${p.desa.length ? `<div class="grid">${p.desa.map(d => {
@@ -813,7 +814,7 @@ function drawPlist() {
     <td><input type="checkbox" aria-label="Pilih ${esc(p.Nama)}" ${S.sel[p.ID] ? 'checked' : ''} onchange="S.sel['${p.ID}']=this.checked"></td>
     <td>${esc(p.Nama)}<br><small style="color:var(--mut)">${esc(p.Alamat)}</small></td><td>${esc(p.RT) || '-'}</td><td>${p.TPS ? esc(p.TPS) : '<span style="color:var(--mut)">-</span>'}</td><td>${esc(p.NIK)}</td><td>${esc(p.NoUndangan)}</td>
     <td>${statusPem(p)}</td>
-    <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="lihatUndangan('${p.ID}')">👁 Lihat</button> ${p.SudahMemilih === 'Ya' ? '' : `<button class="btn sec sm" onclick="editPemilih('${p.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusPem('${p.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>${list.length > 300 ? '<small>Menampilkan 300 pertama — gunakan pencarian. Cetak “Semua” tetap mencakup seluruh pemilih.</small>' : ''}` : '<div class="empty">Belum ada pemilih.</div>';
+    <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="lihatUndangan('${p.ID}')">👁 Lihat</button> ${p.SudahMemilih === 'Ya' ? '' : `<button class="btn sec sm" onclick="editPemilih('${p.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusPem('${p.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>${list.length > 300 ? '<small>Menampilkan 300 pertama — gunakan pencarian. Cetak “Semua” tetap mencakup seluruh pemilih.</small>' : ''}` : `<div class="empty">Belum ada pemilih.${!S.pemilih.length && !S.fixDesa && S.sesi && S.sesi.peran !== 'desa' && S.admin.desa.some(d => d.ID !== S.selDesa && d.dpt) ? '<br><small>Desa lain yang sudah punya pemilih: ' + S.admin.desa.filter(d => d.ID !== S.selDesa && d.dpt).map(d => esc(d.Nama) + ' (' + d.dpt + ')').join(', ') + '. Ganti pilihan <b>Desa</b> di bagian atas halaman.</small>' : ''}</div>`;
 }
 function selAll(on) {
   const q = ($('#q') ? $('#q').value : '').toLowerCase();
@@ -849,8 +850,13 @@ async function hapusPem(id) {
 }
 const maskNik = n => String(n).slice(0, 6) + '••••••' + String(n).slice(-4);
 const LOGO = BASE + (((window.APP_CONFIG || {}).LOGO) || 'logo.png'); // logo kabupaten: file di repository GitHub
+/** Tautan di QR undangan: halaman bilik suara desa (/pilkades<desa>?k=KODE). */
+function qrLink(base, d, kode) {
+  if (base.indexOf('?') >= 0) return base + '&k=' + kode;
+  return base + (base.endsWith('/') ? '' : '/') + 'pilkades' + d.Slug + '?k=' + kode;
+}
 /** Undangan setengah A4 (2 per lembar): kop + logo, data pemilih, QR, calon, tanda tangan ketua panitia. */
-function undangan(p, d, k, img, calon) {
+function undangan(p, d, k, img, calon, link) {
   const kosong = '<span class="blk">&nbsp;</span>';
   const kab = d.Kabupaten || k.kabupaten, kec = d.Kecamatan || k.kecamatan;
   const tgl = k.tanggal ? esc(tglID(k.tanggal)) : kosong, jam = k.mulai && k.selesai ? esc(jamStr(k)) : kosong;
@@ -866,8 +872,9 @@ function undangan(p, d, k, img, calon) {
         <div><span>NIK</span><span>: ${esc(maskNik(p.NIK))}</span></div><div><span>Nama</span><span>: ${esc(p.Nama)}</span></div>
         <div><span>RT</span><span>: ${esc(p.RT) || '-'}</span></div><div><span>TPS</span><span>: ${esc(p.TPS) || '-'}</span></div>
         <div><span>No. Undangan</span><span>: ${esc(p.NoUndangan)}</span></div></div>
-        <div class="uq"><img src="${img}" alt="QR Code memilih"></div></div>
-      <div class="uc2"><div class="cb">${cds}</div>
+        <div class="uq"><img src="${img}" alt="QR Code memilih"></div>
+        <div class="ulk">${esc(String(link || '').replace(/^https?:\/\//, ''))}</div></div>
+      <div class="uc2"><div class="uct">Calon Kepala Desa ${esc(d.Nama)}</div><div class="cb">${cds}</div>
         <div class="ttd2"><div>Panitia Pemilihan Kepala Desa</div><div>Desa ${esc(d.Nama)}</div><div>Ketua,</div>
           <div class="ttdi">${d.TTD ? `<img src="${esc(foto(d.TTD))}" alt="">` : ''}</div><div>${esc(d.Ketua || '') || '&nbsp;'}</div></div></div>
     </div></div>`;
@@ -878,8 +885,8 @@ async function lihatUndangan(id) {
   let r;
   try { r = await run('apiUndangan', S.token, S.selDesa, [id]); } catch (e) { return adminErr(e); }
   if (!r.pemilih.length) return toast('Pemilih tidak ditemukan.');
-  const base = r.url || (location.origin + BASE), sep = base.indexOf('?') >= 0 ? '&' : '?';
-  const html = undangan(r.pemilih[0], d, k, QR.dataUrl(base + sep + 'k=' + r.pemilih[0].Kode, 8), r.calon);
+  const base = r.url || (location.origin + BASE), lk = qrLink(base, d, r.pemilih[0].Kode);
+  const html = undangan(r.pemilih[0], d, k, QR.dataUrl(lk, 8), r.calon, lk);
   modal(`<div class="row sp"><h3 style="margin:0">Pratinjau Undangan</h3><button class="btn sec sm" onclick="closeModal()">Tutup</button></div>
     <div class="msg info" style="font-size:14px">Tampilan sesuai cetak: setengah A4, dua undangan per lembar. Logo, foto, dan tanda tangan bergantung pada data Desa dan Calon.</div>
     <div id="upv" style="overflow:hidden"><div id="upi" style="width:200mm;transform-origin:0 0">${html}</div></div>`);
@@ -903,10 +910,11 @@ async function cetakUndangan(mode) {
   const tanpa = r.pemilih.filter(p => !p.TPS).length;
   if (tanpa) warn.push(tanpa + ' pemilih belum memiliki TPS (RT-nya belum diatur ke TPS manapun oleh Admin Kecamatan) — kolom Tempat kosong di undangan');
   if (warn.length) toast('Perhatian: ' + warn.join('; ') + '.', 8000);
-  const sep = base.indexOf('?') >= 0 ? '&' : '?', out = [];
+  const out = [];
   const total = r.pemilih.length;
   for (let i = 0; i < total; i++) {
-    out.push(undangan(r.pemilih[i], d, k, QR.dataUrl(base + sep + 'k=' + r.pemilih[i].Kode, 8), r.calon));
+    const lk = qrLink(base, d, r.pemilih[i].Kode);
+    out.push(undangan(r.pemilih[i], d, k, QR.dataUrl(lk, 8), r.calon, lk));
     if (i % 25 === 24) { loading(true, 'Membuat QR Code… ' + (i + 1) + ' / ' + total); await sleep(0); }
   }
   loading(false);
@@ -1127,8 +1135,10 @@ function mulaiAdminDesa(h) {
 /* ====================== BILIK SUARA DESA (/pilkadesnamadesa) ====================== */
 /** Ambil kode pemilih dari hasil scan: tautan QR (…?k=KODE) atau kode polos. */
 function ambilKode(t) {
-  const m = String(t || '').trim().match(/(?:[?&]k=|^)(i[0-9a-f]{29})(?![0-9a-f])/i);
-  return m ? m[1].toLowerCase() : '';
+  t = String(t || '').trim();
+  const m = t.match(/[?&]k=([a-z0-9]{5}|i[0-9a-f]{29})(?![a-z0-9])/i); // dari tautan QR
+  if (m) return m[1].toLowerCase();
+  return /^([a-z0-9]{5}|i[0-9a-f]{29})$/i.test(t) ? t.toLowerCase() : ''; // kode saja (5 karakter di bawah QR)
 }
 function pilStop() {
   clearTimeout(S.pilRaf);
@@ -1154,8 +1164,8 @@ function pilMasuk() {
         <h3 style="margin:6px 0">Scan QR Code pada undangan</h3>
         <p style="color:var(--mut);margin:0 0 12px">${kam ? 'Tekan <b>Pilih Kepala Desa</b>, lalu sejajarkan QR Code undangan dengan kamera depan.' : 'Gunakan alat scan, atau scan QR Code dengan kamera bawaan ponsel Anda.'}</p>
         ${kam ? '<button class="btn big" id="pilCam">Pilih Kepala Desa</button>' : ''}
-        <label for="pilKode" style="display:block;margin-top:16px;text-align:left">Alat scan genggam / tempel tautan QR</label>
-        <input id="pilKode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Hasil scan akan terisi di sini">
+        <label for="pilKode" style="display:block;margin-top:16px;text-align:left">Hasil Scan</label>
+        <input id="pilKode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik 5 karakter kode di bawah QR, atau pakai alat scan">
       </div>
       <div class="pilv"><video id="pilVid" playsinline muted></video><span id="pilVt">Kamera belum aktif</span></div>
     </div>`);
@@ -1163,7 +1173,7 @@ function pilMasuk() {
     const kd = ambilKode($('#pilKode').value);
     if (kd) pilKirim(kd);
   };
-  $('#pilKode').oninput = kirim; // otomatis lanjut begitu kode terbaca (tempel / alat scan)
+  $('#pilKode').oninput = () => { clearTimeout(S.pilIn); S.pilIn = setTimeout(kirim, 450); }; // otomatis lanjut begitu kode lengkap (diketik, ditempel, atau alat scan)
   $('#pilKode').onkeydown = e => { if (e.key === 'Enter') { if (ambilKode($('#pilKode').value)) kirim(); else toast('Kode tidak dikenali. Scan ulang QR Code pada undangan.', 4000); } };
   if ($('#pilCam')) $('#pilCam').onclick = async () => { S.pilAuto = true; await pilLayar(); pilKamera(); };
   if (kam && S.pilAuto) pilKamera(); // pemilih berikutnya: kamera langsung aktif
