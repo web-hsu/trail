@@ -301,9 +301,10 @@ if (typeof module !== 'undefined' && module.exports) module.exports = QR;
 <script>
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function sget(k) { try { return sessionStorage.getItem(k) || ''; } catch (e) { return ''; } }
-function sset(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
-function sdel(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
+// disimpan di localStorage agar login bertahan saat halaman di-refresh atau peramban ditutup
+function sget(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+function sset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function sdel(k) { try { localStorage.removeItem(k); } catch (e) {} }
 function jparse(s) { try { return JSON.parse(s); } catch (e) { return null; } }
 
 let busy = 0;
@@ -344,12 +345,12 @@ const jamStr = k => k && k.mulai && k.selesai ? k.mulai + ' – ' + k.selesai + 
 const stLabel = s => s === 'Belum' ? 'Belum Dimulai' : s === 'Dibuka' ? 'Berlangsung' : 'Selesai';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const S = { pub: null, token: sget('tk'), sesi: jparse(sget('ses')), admin: null, view: 'dash', detail: null, tab: '', selDesa: '', pemilih: [], sel: {}, lm: 'desa', kode: '' };
+const S = { pub: null, token: sget('tk'), sesi: jparse(sget('ses')), admin: null, view: 'dash', detail: null, tab: sget('tab'), selDesa: sget('desa'), pemilih: [], sel: {}, lm: 'desa', kode: '' };
 
 /* ====================== NAVIGASI ====================== */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.v));
 function go(v) {
-  S.view = v; clearInterval(S.pt);
+  S.view = v; clearInterval(S.pt); sset('view', v);
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = x !== v);
   if (v === 'dash') { S.detail = null; renderDash(); }
@@ -522,7 +523,7 @@ function formDialog(title, fields, vals, save, note) {
 /* ====================== ADMIN: LOGIN & KERANGKA ====================== */
 function adminErr(e) {
   toast(e.message, 5000);
-  if (/Sesi berakhir/.test(e.message)) { S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); drawLogin(); }
+  if (/Sesi berakhir/.test(e.message)) { S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); drawLogin(); }
 }
 function drawLogin() {
   const desa = S.lm === 'desa';
@@ -564,14 +565,14 @@ function drawAdmin() {
   const cur = tabs.find(t => t[0] === S.tab);
   $('#v-admin').innerHTML = `<div class="adm"><aside class="side">
       <div class="who"><b>${sup ? 'Admin Kecamatan' : 'Admin Desa ' + esc(d0 ? d0.Nama : '')}</b><small>${esc(S.sesi.nama || '')}</small></div>
-      <div class="tabs">${tabs.map(t => `<button data-ic="${ic[t[0]] || '•'}" class="${S.tab === t[0] ? 'on' : ''}" onclick="S.tab='${t[0]}';S.sel={};drawAdmin()">${t[1]}</button>`).join('')}</div>
+      <div class="tabs">${tabs.map(t => `<button data-ic="${ic[t[0]] || '•'}" class="${S.tab === t[0] ? 'on' : ''}" onclick="S.tab='${t[0]}';sset('tab',S.tab);S.sel={};drawAdmin()">${t[1]}</button>`).join('')}</div>
       <button class="btn sec sm out" onclick="logout()">⎋ Keluar</button></aside>
     <section class="content"><h2 class="ptitle">${esc(cur ? cur[1] : '')}</h2><div id="tabBody"></div></section></div>`;
   ({ desa: tDesa, calon: tCalon, admin: tAdmin, rekap: tRekap, pemilih: tPemilih, set: tSet })[S.tab]();
 }
 async function logout() {
   try { await run('apiLogout', S.token); } catch (e) {}
-  S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); drawLogin();
+  S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); sdel('desa'); sdel('view'); drawLogin();
 }
 async function reloadAdmin() {
   S.admin = await run('apiInit', S.token); S.sesi = S.admin.sesi;
@@ -585,7 +586,7 @@ function desaPick(cb) {
     return `<div class="row sp"><b style="font-size:18px">Desa ${esc(d ? d.Nama : '-')}</b><span class="badge b-${S.admin.status}">${stLabel(S.admin.status)}</span></div>`;
   }
   if (!ds.find(d => d.ID === S.selDesa)) S.selDesa = ds[0] ? ds[0].ID : '';
-  return `<label for="selD" style="margin-top:0">Desa</label><select id="selD" onchange="S.selDesa=this.value;S.sel={};${cb}()">${ds.length ? ds.map(d => `<option value="${d.ID}" ${d.ID === S.selDesa ? 'selected' : ''}>${esc(d.Nama)}</option>`).join('') : '<option value="">(belum ada desa)</option>'}</select>`;
+  return `<label for="selD" style="margin-top:0">Desa</label><select id="selD" onchange="S.selDesa=this.value;sset('desa',S.selDesa);S.sel={};${cb}()">${ds.length ? ds.map(d => `<option value="${d.ID}" ${d.ID === S.selDesa ? 'selected' : ''}>${esc(d.Nama)}</option>`).join('') : '<option value="">(belum ada desa)</option>'}</select>`;
 }
 const desaById = id => S.admin.desa.find(d => d.ID === id);
 const desaNama = id => { const d = desaById(id); return d ? d.Nama : '-'; };
@@ -847,6 +848,7 @@ function tSet() {
   const kode = await bacaKode();
   if (kode) return mulaiPemilih(kode);
   await loadPub();
+  if (S.token && sget('view') === 'admin') return go('admin'); // kembali ke panel admin setelah refresh
   renderDash();
 })();
 </script>
