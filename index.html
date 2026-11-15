@@ -102,6 +102,28 @@ body.pemilih header{display:none}
  #printArea table{font-size:12px}#printArea td,#printArea th{border:1px solid #000;padding:6px;height:30px;color:#000}
 }
 @media(max-width:560px){.cand .ph{aspect-ratio:1/1}.brand b{font-size:16px}nav button{padding:9px 10px;font-size:14px}h2{font-size:20px}}
+/* halaman desa: dashboard layar penuh */
+body.fs{background:#04302b}body.fs header{display:none}body.fs main{max-width:none;padding:0}
+body.dadm nav{display:none}
+.dv{background:linear-gradient(160deg,#04302b,#0b5c53 60%,#0f766e);color:#fff;border-radius:20px;padding:clamp(14px,2vw,32px);display:flex;flex-direction:column;gap:clamp(12px,1.6vw,24px)}
+body.fs .dv{min-height:100vh;border-radius:0}
+.dvh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.dvh h1{margin:2px 0;font-size:clamp(26px,4.2vw,60px);line-height:1.1}.dvh small{font-size:clamp(14px,1.6vw,24px);opacity:.85;display:block}
+.dvb{padding:6px 18px;border-radius:99px;font-weight:800;background:#fff;color:var(--pri);font-size:clamp(14px,1.6vw,24px)}
+.dvp{background:rgba(255,255,255,.1);border-radius:18px;padding:clamp(12px,1.6vw,24px)}
+.dvt{margin:0 0 10px;font-size:clamp(18px,2.2vw,32px)}
+.cdl{font-size:clamp(16px,2.4vw,34px);font-weight:700;text-align:center}
+.cdb{display:flex;justify-content:center;gap:clamp(8px,1.6vw,22px);margin-top:10px}
+.cdb div{background:rgba(0,0,0,.28);border-radius:16px;min-width:clamp(64px,13vw,190px);padding:clamp(8px,1.4vw,22px) 6px;text-align:center}
+.cdb b{display:block;font-size:clamp(34px,8vw,120px);line-height:1;font-variant-numeric:tabular-nums}
+.cdb small{font-size:clamp(11px,1.4vw,22px);opacity:.8;text-transform:uppercase;letter-spacing:1px}
+.cds{text-align:center;margin-top:10px;opacity:.85;font-size:clamp(13px,1.5vw,22px)}
+.dvs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:clamp(8px,1.2vw,18px)}
+.dvs>div{background:rgba(255,255,255,.1);border-radius:16px;padding:clamp(10px,1.4vw,22px);text-align:center}
+.dvs b{display:block;font-size:clamp(30px,5vw,80px);line-height:1.05}.dvs span{font-size:clamp(12px,1.4vw,22px);opacity:.85}
+.tpsg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.tpsc{background:rgba(0,0,0,.22);border-radius:14px;padding:14px;font-size:clamp(14px,1.3vw,20px)}
+.dv .hrow .av{color:#0f172a}.dv .hrow.win .nm{color:#5eead4}.dv .bar-line{background:rgba(255,255,255,.2)}
 </style>
 </head>
 <body>
@@ -117,6 +139,7 @@ body.pemilih header{display:none}
   <section id="v-dash"></section>
   <section id="v-admin" hidden></section>
   <section id="v-pemilih" hidden></section>
+  <section id="v-desa" hidden></section>
 </main>
 
 <div id="modal" class="modal" hidden><div class="box" id="modalBox"></div></div>
@@ -345,8 +368,10 @@ const jamStr = k => k && k.mulai && k.selesai ? k.mulai + ' – ' + k.selesai + 
 const stLabel = s => s === 'Belum' ? 'Belum Dimulai' : s === 'Dibuka' ? 'Berlangsung' : 'Selesai';
 const pad3 = n => String(n).padStart(3, '0');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+/** Folder dasar situs (mis. "/" atau "/nama-repo/"), dihitung sekali saat halaman dibuka. */
+const BASE = (() => { let p = location.pathname.replace(/index\.html$/, ''); if (!p.endsWith('/')) p += '/'; return p; })();
 
-const S = { pub: null, token: sget('tk'), sesi: jparse(sget('ses')), admin: null, view: 'dash', detail: null, tab: sget('tab'), selDesa: sget('desa'), pemilih: [], sel: {}, lm: 'desa', kode: '' };
+const S = { pub: null, token: sget('tk'), sesi: jparse(sget('ses')), admin: null, view: 'dash', tab: sget('tab'), selDesa: sget('desa'), pemilih: [], sel: {}, lm: 'desa', kode: '' };
 
 /* ====================== NAVIGASI ====================== */
 document.querySelectorAll('nav button').forEach(b => b.onclick = () => go(b.dataset.v));
@@ -354,7 +379,7 @@ function go(v) {
   S.view = v; clearInterval(S.pt); sset('view', v);
   document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = x !== v);
-  if (v === 'dash') { S.detail = null; renderDash(); }
+  if (v === 'dash') renderDash();
   if (v === 'admin') renderAdmin();
   window.scrollTo(0, 0);
 }
@@ -362,7 +387,7 @@ async function loadPub(silent) {
   try {
     S.pub = await (silent ? quiet('apiPublik') : run('apiPublik'));
     const k = S.pub.kec || {};
-    $('#hdrSub').textContent = k.kecamatan ? 'Kecamatan ' + k.kecamatan : 'Pemilihan Kepala Desa';
+    $('#hdrSub').textContent = S.fixDesa ? 'Admin Desa ' + S.fixNama : (k.kecamatan ? 'Kecamatan ' + k.kecamatan : 'Pemilihan Kepala Desa');
   } catch (e) { if (!silent) toast('Gagal memuat data: ' + e.message, 5000); }
 }
 function banner(st, k) {
@@ -377,7 +402,6 @@ function banner(st, k) {
 function renderDash() {
   const el = $('#v-dash'), p = S.pub;
   if (!p) { el.innerHTML = '<div class="empty">Memuat…</div>'; return; }
-  if (S.detail) return renderDetail();
   const k = p.kec || {}, sum = f => p.desa.reduce((a, d) => a + d[f], 0);
   const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
   el.innerHTML = `<h2 style="margin-bottom:2px">Pemilihan Kepala Desa Serentak</h2>
@@ -391,11 +415,11 @@ function renderDash() {
     </div>
     ${p.desa.length ? `<div class="grid">${p.desa.map(d => {
       const pct = d.dpt ? Math.round(d.sudah * 100 / d.dpt) : 0;
-      return `<div class="card desa" onclick="openDesa('${d.ID}')">
-        <h3>${esc(d.Nama)}</h3>
+      return `<a class="card desa" href="${esc(BASE + d.Slug)}" style="display:block;color:inherit;text-decoration:none">
+        <h3>${esc(d.Nama)} <span class="badge b-${d.status}" style="font-size:11px;vertical-align:middle">${stLabel(d.status)}</span></h3>
         <small>${p.calon.filter(c => c.DesaID === d.ID).length} calon${d.JumlahTPS ? ' · ' + d.JumlahTPS + ' TPS' : ''}</small>
         <div style="margin-top:8px;font-size:14px">Sudah memilih: <b>${d.sudah}</b> / ${d.dpt} pemilih (${pct}%)</div>
-        <div class="bar-line"><i style="width:${pct}%"></i></div></div>`;
+        <div class="bar-line"><i style="width:${pct}%"></i></div></a>`;
     }).join('')}</div>` : '<div class="card empty">Belum ada data desa.</div>'}`;
 }
 function candCard(c) {
@@ -406,47 +430,10 @@ function candCard(c) {
     ${c.Visi || c.Misi ? `<details><summary>Visi &amp; Misi</summary>${c.Visi ? `<p><b>Visi:</b> ${esc(c.Visi)}</p>` : ''}${c.Misi ? `<p style="white-space:pre-line"><b>Misi:</b> ${esc(c.Misi)}</p>` : ''}</details>` : ''}
     </div></div>`;
 }
-function openDesa(id) { S.detail = id; renderDetail(); }
-async function renderDetail() {
-  const el = $('#v-dash'), d = S.pub.desa.find(x => x.ID === S.detail);
-  if (!d) { S.detail = null; return renderDash(); }
-  const st = S.pub.status; S.detailStatus = st;
-  const calon = S.pub.calon.filter(c => c.DesaID === d.ID);
-  let html = `<button class="btn sec sm" onclick="S.detail=null;renderDash()">← Kembali</button>
-    <div class="row sp" style="margin:12px 0"><div><h2 style="margin:0">Desa ${esc(d.Nama)}</h2><small style="color:var(--mut)">${d.JumlahTPS ? d.JumlahTPS + ' TPS' : ''}</small></div>
-    <span class="badge b-${st}" style="font-size:14px">${st === 'Dibuka' ? 'Pemilihan Berlangsung' : st === 'Selesai' ? 'Pemilihan Selesai' : 'Belum Dimulai'}</span></div>`;
-  if (st === 'Selesai') {
-    let h = null;
-    try { h = await run('apiHasil', d.ID); } catch (e) {}
-    if (S.detail !== d.ID) return;
-    if (h && h.tersedia) {
-      const max = Math.max(0, ...h.calon.map(c => c.suara));
-      const win = h.calon.filter(c => c.suara === max && max > 0);
-      html += `<div class="card"><h3>🏆 Hasil Perolehan Suara</h3>
-        ${win.length === 1 ? `<div class="win-banner">Kepala Desa Terpilih: No. ${esc(win[0].NoUrut)} — ${esc(win[0].Nama)}</div>` : win.length > 1 ? '<div class="win-banner">Perolehan suara teratas sama — menunggu keputusan panitia</div>' : ''}
-        <div>${h.calon.map(c => {
-          const pct = h.totalSuara ? (c.suara * 100 / h.totalSuara) : 0, u = foto(c.Foto);
-          return `<div class="hrow ${win.length === 1 && win[0].ID === c.ID ? 'win' : ''}">
-            ${u ? `<img src="${esc(u)}" alt="">` : '<div class="av">👤</div>'}
-            <div class="t"><div class="nm"><span>No. ${esc(c.NoUrut)} · ${esc(c.Nama)}</span><span>${c.suara} suara (${pct.toFixed(1)}%)</span></div><div class="pb"><i style="width:${pct}%"></i></div></div></div>`;
-        }).join('')}</div>
-        <div class="stats" style="margin:14px 0 0">
-          <div class="stat"><b>${h.dpt}</b><span>Pemilih terdaftar</span></div>
-          <div class="stat"><b>${h.sudah}</b><span>Menggunakan hak pilih</span></div>
-          <div class="stat"><b>${h.dpt ? (h.sudah * 100 / h.dpt).toFixed(1) : 0}%</b><span>Partisipasi</span></div>
-          <div class="stat"><b>${h.dpt - h.sudah}</b><span>Tidak memilih</span></div></div></div>`;
-    }
-  } else if (st === 'Dibuka') {
-    html += '<div class="msg ok">Pemilihan sedang berlangsung. Hasil suara akan ditampilkan setelah waktu pemilihan berakhir.</div>';
-  }
-  html += `<h3>Bakal Calon Kepala Desa</h3>${calon.length ? `<div class="cands">${calon.map(candCard).join('')}</div>` : '<div class="card empty">Belum ada calon.</div>'}`;
-  el.innerHTML = html;
-}
 setInterval(async () => { // segarkan otomatis
   if (document.hidden || S.view !== 'dash' || document.body.classList.contains('pemilih')) return;
   await loadPub(true);
-  if (!S.detail) renderDash();
-  else if (S.pub.status !== S.detailStatus) renderDetail();
+  renderDash();
 }, 30000);
 
 /* ====================== PEMILIH (hasil scan QR pada undangan) ====================== */
@@ -528,14 +515,14 @@ function adminErr(e) {
 }
 function drawLogin() {
   const desa = S.lm === 'desa';
-  $('#v-admin').innerHTML = `<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 Login Admin</h2>
+  $('#v-admin').innerHTML = `<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 Login Admin${S.fixDesa ? ' Desa ' + esc(S.fixNama) : ''}</h2>
     <div class="seg"><button class="${desa ? 'on' : ''}" onclick="S.lm='desa';drawLogin()">Admin Desa</button><button class="${desa ? '' : 'on'}" onclick="S.lm='super';drawLogin()">Admin Kecamatan</button></div>
     ${desa ? '<label for="usr">Username</label><input id="usr" autocomplete="off" autocapitalize="none" placeholder="Username dari Admin Kecamatan">' : ''}
     <label for="pin">PIN</label><input id="pin" type="password" placeholder="Masukkan PIN" autocomplete="off">
     <div style="margin-top:14px"><button class="btn big" id="lg">Masuk</button></div></div>`;
   const masuk = async () => {
     try {
-      const r = desa ? await run('apiLoginDesa', $('#usr').value, $('#pin').value) : await run('apiLoginSuper', $('#pin').value);
+      const r = desa ? await run('apiLoginDesa', $('#usr').value, $('#pin').value, S.fixSlug || '') : await run('apiLoginSuper', $('#pin').value);
       if (!r.ok) return toast(r.pesan, 4500);
       S.token = r.token; S.sesi = { peran: r.peran, nama: r.nama, desaId: r.desaId };
       sset('tk', r.token); sset('ses', JSON.stringify(S.sesi));
@@ -547,6 +534,7 @@ function drawLogin() {
   $('#lg').onclick = masuk; $('#pin').onkeydown = e => { if (e.key === 'Enter') masuk(); };
 }
 function tabsFor() {
+  if (S.fixDesa) return [['dash', 'Dashboard'], ['pemilih', 'Pemilih & Undangan'], ['set', 'Akun']];
   return S.sesi && S.sesi.peran === 'super'
     ? [['desa', 'Desa'], ['tps', 'Atur TPS'], ['calon', 'Calon'], ['admin', 'Admin Desa'], ['pemilih', 'Pemilih & Undangan'], ['rekap', 'Rekap Suara'], ['set', 'Pengaturan']]
     : [['pemilih', 'Pemilih & Undangan'], ['set', 'Akun Saya']];
@@ -555,21 +543,31 @@ async function renderAdmin() {
   if (!S.token) return drawLogin();
   try { S.admin = await run('apiInit', S.token); S.sesi = S.admin.sesi; }
   catch (e) { return adminErr(e); }
+  if (S.sesi.peran === 'desa' && !S.fixDesa) { // Admin Desa selalu bekerja di halaman desanya
+    const d0 = S.admin.desa[0];
+    if (d0) { location.replace(location.origin + BASE + 'admin' + d0.Slug); return; }
+  }
+  if (S.fixDesa && S.sesi.peran === 'desa' && S.sesi.desaId !== S.fixDesa) {
+    $('#v-admin').innerHTML = '<div class="card" style="max-width:420px;margin:30px auto" ><h2>Tidak berwenang</h2><p>Akun Anda bukan admin untuk desa ini. Keluar lalu masuk dengan akun yang sesuai.</p><button class="btn" onclick="logout()">Keluar</button></div>';
+    return;
+  }
   if (!tabsFor().find(t => t[0] === S.tab)) S.tab = tabsFor()[0][0];
   drawAdmin();
 }
 function drawAdmin() {
   clearInterval(S.pt);
+  if (S.fixDesa) S.selDesa = S.fixDesa;
   const sup = S.sesi.peran === 'super', tabs = tabsFor();
-  const d0 = !sup && S.admin.desa[0];
-  const ic = { desa: '🏘️', tps: '📍', calon: '🧑‍💼', admin: '👥', pemilih: '🗒️', rekap: '📊', set: '⚙️' };
+  const d0 = S.fixDesa ? desaById(S.fixDesa) : (!sup && S.admin.desa[0]);
+  const ic = { dash: '📈', desa: '🏘️', tps: '📍', calon: '🧑‍💼', admin: '👥', pemilih: '🗒️', rekap: '📊', set: '⚙️' };
   const cur = tabs.find(t => t[0] === S.tab);
   $('#v-admin').innerHTML = `<div class="adm"><aside class="side">
-      <div class="who"><b>${sup ? 'Admin Kecamatan' : 'Admin Desa ' + esc(d0 ? d0.Nama : '')}</b><small>${esc(S.sesi.nama || '')}</small></div>
+      <div class="who"><b>${sup && !S.fixDesa ? 'Admin Kecamatan' : 'Admin Desa ' + esc(d0 ? d0.Nama : '')}</b><small>${esc(S.sesi.nama || '')}</small></div>
       <div class="tabs">${tabs.map(t => `<button data-ic="${ic[t[0]] || '•'}" class="${S.tab === t[0] ? 'on' : ''}" onclick="S.tab='${t[0]}';sset('tab',S.tab);S.sel={};drawAdmin()">${t[1]}</button>`).join('')}</div>
+      ${S.fixDesa && d0 ? `<a class="btn sec sm out" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px" href="${esc(BASE + d0.Slug)}" target="_blank" rel="noopener">🔗 Halaman publik desa</a>` : ''}
       <button class="btn sec sm out" onclick="logout()">⎋ Keluar</button></aside>
     <section class="content"><h2 class="ptitle">${esc(cur ? cur[1] : '')}</h2><div id="tabBody"></div></section></div>`;
-  ({ desa: tDesa, tps: tTps, calon: tCalon, admin: tAdmin, rekap: tRekap, pemilih: tPemilih, set: tSet })[S.tab]();
+  ({ desa: tDesa, tps: tTps, calon: tCalon, admin: tAdmin, rekap: tRekap, pemilih: tPemilih, set: tSet, dash: tDash })[S.tab]();
 }
 async function logout() {
   try { await run('apiLogout', S.token); } catch (e) {}
@@ -582,16 +580,16 @@ async function reloadAdmin() {
 /** Pilihan desa: Admin Kecamatan memilih; Admin Desa terkunci pada desanya. */
 function desaPick(cb) {
   const ds = S.admin.desa;
-  if (S.sesi.peran === 'desa') {
-    S.selDesa = S.sesi.desaId; const d = ds[0];
-    return `<div class="row sp"><b style="font-size:18px">Desa ${esc(d ? d.Nama : '-')}</b><span class="badge b-${S.admin.status}">${stLabel(S.admin.status)}</span></div>`;
+  if (S.fixDesa || S.sesi.peran === 'desa') {
+    S.selDesa = S.fixDesa || S.sesi.desaId; const d = desaById(S.selDesa);
+    return `<div class="row sp"><b style="font-size:18px">Desa ${esc(d ? d.Nama : '-')}</b><span class="badge b-${d ? d.status : 'Belum'}">${stLabel(d ? d.status : 'Belum')}</span></div>`;
   }
   if (!ds.find(d => d.ID === S.selDesa)) S.selDesa = ds[0] ? ds[0].ID : '';
   return `<label for="selD" style="margin-top:0">Desa</label><select id="selD" onchange="S.selDesa=this.value;sset('desa',S.selDesa);S.sel={};${cb}()">${ds.length ? ds.map(d => `<option value="${d.ID}" ${d.ID === S.selDesa ? 'selected' : ''}>${esc(d.Nama)}</option>`).join('') : '<option value="">(belum ada desa)</option>'}</select>`;
 }
 const desaById = id => S.admin.desa.find(d => d.ID === id);
 const desaNama = id => { const d = desaById(id); return d ? d.Nama : '-'; };
-const terkunci = () => S.admin.status !== 'Belum';
+const terkunci = () => { const d = desaById(S.selDesa); return !!d && d.status !== 'Belum'; };
 
 /* ====================== ADMIN KECAMATAN: DESA ====================== */
 function tDesa() {
@@ -599,7 +597,7 @@ function tDesa() {
   $('#tabBody').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">Data Desa</h3><button class="btn sm" id="add">+ Tambah Desa</button></div>
     ${a.desa.length ? `<div class="tw"><table><tr><th>Desa</th><th>Jumlah RT</th><th>TPS</th><th>Calon</th><th>Pemilih</th><th>Admin Desa</th><th></th></tr>${a.desa.map(d => {
       const adm = a.admins.filter(x => x.DesaID === d.ID).map(x => x.Nama);
-      return `<tr><td><b>${esc(d.Nama)}</b></td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${d.JumlahTPS || '<span style="color:var(--mut)">0</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
+      return `<tr><td><b>${esc(d.Nama)}</b><br><small><a href="${esc(BASE + d.Slug)}" target="_blank" rel="noopener">/${esc(d.Slug)}</a> · <a href="${esc(BASE + 'admin' + d.Slug)}" target="_blank" rel="noopener">/admin${esc(d.Slug)}</a></small></td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${d.JumlahTPS || '<span style="color:var(--mut)">0</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="editDesa('${d.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusDesa('${d.ID}')">Hapus</button></td></tr>`;
     }).join('')}</table></div>` : '<div class="empty">Belum ada desa. Klik "+ Tambah Desa".</div>'}</div>`;
   $('#add').onclick = () => editDesa('');
@@ -845,7 +843,7 @@ async function cetakUndangan(mode) {
   } else if (!S.pemilih.length) return toast('Belum ada pemilih.');
   let r;
   try { r = await run('apiUndangan', S.token, S.selDesa, ids); } catch (e) { return adminErr(e); }
-  const base = r.url || (location.origin + location.pathname.replace(/index\.html$/, ''));
+  const base = r.url || (location.origin + BASE);
   if (!/^https:\/\//.test(base)) toast('Perhatian: situs belum dibuka lewat https (mis. masih lokal). QR Code tidak akan berfungsi untuk pemilih — buka dari alamat GitHub Pages.', 9000);
   const warn = [];
   if (!k.tanggal || !k.mulai) warn.push('tanggal/jam pemilihan (Pengaturan) belum diisi');
@@ -874,7 +872,7 @@ async function cetakHadir() {
 
 /* ====================== PENGATURAN / AKUN ====================== */
 function tSet() {
-  const sup = S.sesi.peran === 'super', k = S.admin.set || {};
+  const sup = S.sesi.peran === 'super' && !S.fixDesa, k = S.admin.set || {};
   $('#tabBody').innerHTML = `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
     ${sup ? `<div class="card"><h3>Jadwal &amp; Data Acara</h3>
       <div class="msg ${S.admin.status === 'Dibuka' ? 'ok' : 'info'}" style="font-size:14px">Status sekarang: <b>${stLabel(S.admin.status)}</b>. Pemilihan <b>dibuka dan ditutup otomatis</b> sesuai tanggal dan jam di bawah (zona ${esc(k.zona || '')}). Untuk memperpanjang, ubah jam selesai.</div>
@@ -882,8 +880,8 @@ function tSet() {
       <label for="sB">Kabupaten</label><input id="sB" value="${esc(k.kabupaten)}" placeholder="Contoh: Hulu Sungai Utara">
       <label for="sT">Tanggal Pemilihan</label><input id="sT" type="date" value="${esc(k.tanggal)}">
       <div class="row" style="flex-wrap:nowrap"><div style="flex:1"><label for="sM">Jam mulai</label><input id="sM" type="time" value="${esc(k.mulai)}"></div><div style="flex:1"><label for="sS">Jam selesai</label><input id="sS" type="time" value="${esc(k.selesai)}"></div></div>
-      <label for="sU">Alamat situs untuk QR Code (opsional)</label><input id="sU" value="${esc(S.admin.urlManual)}" placeholder="${esc(location.origin + location.pathname)}">
-      <small style="color:var(--mut)">Kosongkan agar otomatis memakai alamat situs ini: <b>${esc(location.origin + location.pathname)}</b>. Isi hanya jika memakai domain lain. Jangan diubah setelah undangan dicetak.</small>
+      <label for="sU">Alamat situs untuk QR Code (opsional)</label><input id="sU" value="${esc(S.admin.urlManual)}" placeholder="${esc(location.origin + BASE)}">
+      <small style="color:var(--mut)">Kosongkan agar otomatis memakai alamat situs ini: <b>${esc(location.origin + BASE)}</b>. Isi hanya jika memakai domain lain. Jangan diubah setelah undangan dicetak.</small>
       <div style="margin-top:14px"><button class="btn" id="sv">Simpan</button></div></div>` : ''}
     <div class="card"><h3>Ganti PIN</h3>
       ${sup && S.admin.pinDefault ? '<div class="msg warn">Anda masih memakai PIN bawaan (admin123). Segera ganti.</div>' : ''}
@@ -900,11 +898,141 @@ function tSet() {
   };
 }
 
+/* ====================== HALAMAN DESA (/namadesa dan /adminnamadesa) ====================== */
+const p2 = n => String(n).padStart(2, '0');
+function ensureCd() { if (!S.cdT) S.cdT = setInterval(tickCd, 1000); }
+/** Teks dan sisa waktu hitung mundur menurut status: ke jam mulai, lalu ke batas pemilihan. */
+function cdInfo(o) {
+  const now = Date.now() + (S.off || 0);
+  if (o.status === 'Selesai') return { label: 'Pemilihan telah selesai' };
+  if (o.status === 'Belum') return o.mulaiMs ? { label: 'Pemilihan dimulai dalam', ms: o.mulaiMs - now } : { label: 'Jadwal pemilihan belum ditetapkan' };
+  return o.selesaiMs ? { label: 'Batas pemilihan berakhir dalam', ms: o.selesaiMs - now } : { label: 'Pemilihan sedang berlangsung' };
+}
+function tickCd() {
+  const o = S.dv; if (!o || !$('#cdH')) return;
+  const c = cdInfo(o); if (c.ms === undefined) return;
+  const s = Math.floor(Math.max(0, c.ms) / 1000);
+  $('#cdD').textContent = Math.floor(s / 86400); $('#cdH').textContent = p2(Math.floor(s % 86400 / 3600));
+  $('#cdM').textContent = p2(Math.floor(s % 3600 / 60)); $('#cdS').textContent = p2(s % 60);
+  if (c.ms <= 0 && Date.now() - (S.lastRef || 0) > 3000) refreshDv(true); // waktunya berganti status
+}
+async function refreshDv(silent) {
+  S.lastRef = Date.now();
+  const adm = S.dvMode === 'admin', call = silent ? quiet : run;
+  try {
+    const o = adm ? await call('apiDashboardDesa', S.token, S.dvId) : await call('apiDesaPublik', S.dvId);
+    S.dv = o; S.off = o.nowMs - Date.now(); drawDv();
+  } catch (e) {
+    if (adm) { if (!silent || /Sesi berakhir/.test(e.message)) adminErr(e); }
+    else if (!silent) halamanGagal(e.message);
+  }
+}
+function drawDv() {
+  const adm = S.dvMode === 'admin', box = $(adm ? '#dvBox' : '#v-desa');
+  if (!box || !S.dv) return;
+  box.innerHTML = (adm ? ctlHtml(S.dv) : '') + dvHtml(S.dv, adm);
+  tickCd();
+}
+function hasilHtml(h) {
+  const max = Math.max(0, ...h.calon.map(c => c.suara)), win = h.calon.filter(c => c.suara === max && max > 0);
+  return `<div class="dvp"><h3 class="dvt">🏆 Hasil Perolehan Suara</h3>
+    ${win.length === 1 ? `<div class="win-banner" style="color:#0f172a">Kepala Desa Terpilih: No. ${esc(win[0].NoUrut)} — ${esc(win[0].Nama)}</div>` : win.length > 1 ? '<div class="win-banner" style="color:#0f172a">Perolehan suara teratas sama — menunggu keputusan panitia</div>' : ''}
+    ${h.calon.map(c => {
+      const pct = h.totalSuara ? c.suara * 100 / h.totalSuara : 0, u = foto(c.Foto);
+      return `<div class="hrow ${win.length === 1 && win[0].ID === c.ID ? 'win' : ''}">${u ? `<img src="${esc(u)}" alt="">` : '<div class="av">👤</div>'}
+        <div class="t"><div class="nm"><span>No. ${esc(c.NoUrut)} · ${esc(c.Nama)}</span><span>${c.suara} suara (${pct.toFixed(1)}%)</span></div><div class="pb"><i style="width:${pct}%"></i></div></div></div>`;
+    }).join('')}</div>`;
+}
+function dvHtml(o, adm) {
+  const k = o.kec || {}, c = cdInfo(o);
+  const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
+  const jadwal = k.tanggal && k.mulai && k.selesai ? tglID(k.tanggal) + ' · pukul ' + jamStr(k) : 'Jadwal pemilihan belum ditetapkan';
+  const pct = x => o.dpt ? Math.round(x * 100 / o.dpt) : 0;
+  const cd = `<div class="cdl">${esc(c.label)}</div>` + (c.ms === undefined ? '' :
+    '<div class="cdb"><div><b id="cdD">0</b><small>Hari</small></div><div><b id="cdH">00</b><small>Jam</small></div><div><b id="cdM">00</b><small>Menit</small></div><div><b id="cdS">00</b><small>Detik</small></div></div>') +
+    `<div class="cds">${esc(jadwal)}</div>`;
+  const tps = o.tps.length ? `<div class="tpsg">${o.tps.map(t => `<div class="tpsc">
+      <div class="row sp"><b style="font-size:1.4em">TPS ${esc(t.NoTPS)}</b><span>${t.dpt} pemilih</span></div>
+      ${t.Lokasi ? `<div style="opacity:.85">${esc(t.Lokasi)}</div>` : ''}
+      <div style="opacity:.75">RT ${t.RT.map(r => esc(r)).join(', ')}</div>
+      <div style="margin-top:8px">Hadir <b>${t.hadir}</b> · Sudah memilih <b>${t.sudah}</b></div>
+      <div class="bar-line"><i style="width:${t.dpt ? Math.round(t.sudah * 100 / t.dpt) : 0}%"></i></div></div>`).join('')}</div>`
+    : '<div style="opacity:.8">TPS belum diatur.</div>';
+  return `<div class="dv">
+    <div class="dvh"><div><small>Pemilihan Kepala Desa Serentak</small><h1>Desa ${esc(o.desa.Nama)}</h1><small>${esc(sub)}</small></div>
+      <div class="row"><span class="dvb">${stLabel(o.status)}</span>${adm ? '' : '<button class="btn sec sm" onclick="document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()">⛶ Layar penuh</button>'}</div></div>
+    <div class="dvp">${cd}</div>
+    <div class="dvs">
+      <div><b>${o.dpt}</b><span>Peserta terdaftar</span></div>
+      <div><b>${o.hadir}</b><span>Sudah hadir (${pct(o.hadir)}%)</span></div>
+      <div><b>${o.sudah}</b><span>Sudah memilih (${pct(o.sudah)}%)</span></div>
+      <div><b>${Math.max(0, o.dpt - o.sudah)}</b><span>Belum memilih</span></div></div>
+    <div class="dvp"><h3 class="dvt">Rangkuman TPS (${o.tps.length})</h3>${tps}
+      ${adm && o.tanpaTps ? `<div class="msg warn" style="margin-top:10px">${o.tanpaTps} pemilih belum masuk TPS manapun (RT-nya belum diatur ke TPS oleh Admin Kecamatan).</div>` : ''}</div>
+    ${o.hasil ? hasilHtml(o.hasil) : ''}
+    ${adm ? '' : `<div><h3 class="dvt">Calon Kepala Desa</h3>${o.calon.length ? `<div class="cands">${o.calon.map(candCard).join('')}</div>` : '<div style="opacity:.8">Belum ada calon.</div>'}</div>
+      <div style="text-align:center;opacity:.75;margin-top:auto"><a href="${esc(BASE)}" style="color:#fff">← Dashboard Kecamatan</a></div>`}
+  </div>`;
+}
+/** Kontrol Admin Desa: mulai lebih awal / akhiri lebih cepat. */
+function ctlHtml(o) {
+  const st = o.status;
+  return `<div class="card"><div class="row sp" style="gap:14px"><div style="flex:1;min-width:240px"><h3 style="margin:0">Kontrol Pemilihan</h3>
+      <small style="color:var(--mut)">Status: <b>${stLabel(st)}</b>. Pemilihan juga dibuka dan ditutup otomatis sesuai jadwal. Tombol ini untuk memulai lebih awal atau mengakhiri lebih cepat.</small></div>
+    <div>${st === 'Belum' ? '<button class="btn" onclick="mulaiPilih()">▶ Mulai Pemilihan</button>' : st === 'Dibuka' ? '<button class="btn red" onclick="akhiriPilih()">■ Akhiri Pemilihan</button>' : '<span class="badge b-Selesai">Pemilihan selesai</span>'}</div></div>
+    ${st === 'Belum' && !o.calon.length ? '<div class="msg warn">Belum ada calon. Admin Kecamatan perlu menambahkan calon sebelum pemilihan dapat dimulai.</div>' : ''}</div>`;
+}
+async function mulaiPilih() {
+  if (!confirm('Mulai pemilihan Desa ' + S.dv.desa.Nama + ' sekarang?\n\nSetelah dimulai, data calon dan pengaturan TPS dikunci, dan pemilih dapat scan QR Code untuk memilih.')) return;
+  try { await run('apiMulaiPemilihan', S.token, S.dvId); toast('Pemilihan dimulai.'); reloadAdmin(); } catch (e) { adminErr(e); }
+}
+async function akhiriPilih() {
+  if (!confirm('AKHIRI pemilihan Desa ' + S.dv.desa.Nama + ' sekarang?\n\nTindakan ini TIDAK dapat dibatalkan. Pemilih yang belum memilih tidak dapat memilih lagi, dan hasil suara langsung tampil di halaman publik.')) return;
+  try { await run('apiAkhiriPemilihan', S.token, S.dvId); toast('Pemilihan diakhiri.'); reloadAdmin(); } catch (e) { adminErr(e); }
+}
+function tDash() {
+  S.dvMode = 'admin'; S.dvId = S.selDesa; S.dv = null;
+  $('#tabBody').innerHTML = '<div id="dvBox"></div>';
+  ensureCd(); refreshDv(false);
+  S.pt = setInterval(() => { if (document.hidden || S.view !== 'admin' || S.tab !== 'dash' || !$('#dvBox')) return; refreshDv(true); }, 10000);
+}
+function halamanGagal(msg) {
+  document.body.classList.remove('fs'); document.body.classList.add('pemilih');
+  ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = true);
+  $('#v-desa').hidden = false;
+  $('#v-desa').innerHTML = `<div class="vstat card"><div class="bigic">🔎</div><h2>Halaman tidak tersedia</h2><p>${esc(msg)}</p><a class="btn" href="${esc(BASE)}">Ke Dashboard Kecamatan</a></div>`;
+}
+async function mulaiHalaman(slug) {
+  S.view = 'desa';
+  ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = true);
+  let h;
+  try { h = await run('apiHalaman', slug); } catch (e) { return halamanGagal(e.message); }
+  document.title = (h.tipe === 'admin' ? 'Admin Desa ' : 'Desa ') + h.Nama + ' — Pilkades Serentak';
+  return h.tipe === 'admin' ? mulaiAdminDesa(h) : mulaiPublikDesa(h);
+}
+async function mulaiPublikDesa(h) {
+  document.body.classList.add('fs');
+  S.dvMode = 'publik'; S.dvId = h.ID;
+  $('#v-desa').hidden = false;
+  ensureCd();
+  await refreshDv(false);
+  S.dvT = setInterval(() => { if (!document.hidden) refreshDv(true); }, 10000);
+}
+function mulaiAdminDesa(h) {
+  document.body.classList.add('dadm');
+  S.fixDesa = h.ID; S.fixNama = h.Nama; S.fixSlug = h.Halaman; S.selDesa = h.ID; S.view = 'admin';
+  $('#hdrSub').textContent = 'Admin Desa ' + h.Nama;
+  $('#v-admin').hidden = false;
+  renderAdmin();
+}
+
 /* ====================== MULAI ====================== */
 (async () => {
   if (!API_URL) { document.body.classList.add('pemilih'); $('#v-dash').hidden = true; $('#v-pemilih').hidden = false; return vStatus('⚙️', 'Belum dikonfigurasi', 'Isi <b>API_URL</b> pada file <b>config.js</b> dengan alamat Web app Apps Script (berakhiran /exec).'); }
   const kode = await bacaKode();
   if (kode) return mulaiPemilih(kode);
+  const hal = (new URLSearchParams(location.search).get('p') || '').trim().toLowerCase();
+  if (hal) { history.replaceState(null, '', BASE + hal); return mulaiHalaman(hal); } // dari 404.html
   await loadPub();
   if (S.token && sget('view') === 'admin') return go('admin'); // kembali ke panel admin setelah refresh
   renderDash();

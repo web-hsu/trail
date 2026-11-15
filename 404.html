@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memuat…</title>
+<script>
+/* GitHub Pages hanya menyajikan file yang ada. Alamat seperti /namadesa atau /adminnamadesa
+   jatuh ke halaman ini, lalu diteruskan ke index.html (folder dasar yang sama) dengan ?p=namahalaman.
+   Folder dasar dihitung otomatis: segmen terakhir adalah nama halaman, sisanya folder situs
+   (mis. /nama-repo/ untuk project site, atau / untuk user site / domain sendiri). */
+(function () {
+  var segs = location.pathname.split('/').filter(Boolean);
+  var slug = (segs.pop() || '').toLowerCase();
+  var base = '/' + (segs.length ? segs.join('/') + '/' : '');
+  location.replace(location.origin + base + '?p=' + encodeURIComponent(slug));
+})();
+</script>
+</head>
+<body style="font-family:system-ui,sans-serif;text-align:center;padding:40px;color:#334155">
+<p>Memuat halaman…</p>
+<noscript><p>Aktifkan JavaScript untuk membuka halaman ini.</p></noscript>
+</body>
+</html>
