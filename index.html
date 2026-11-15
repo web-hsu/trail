@@ -94,6 +94,7 @@ body.pemilih header{display:none}
 .und .mid .l{flex:1;min-width:0}
 .und .qr{flex:none;text-align:center;font-size:8.5px;font-weight:800;line-height:1.15}
 .und .qr img{display:block;width:30mm;height:30mm;image-rendering:pixelated;image-rendering:crisp-edges}
+.und .jd{display:flex;justify-content:space-between;align-items:flex-end;gap:6px}.und .jl{flex:1;min-width:0}.und .ttd{flex:none;text-align:center;font-size:10px;line-height:1.2;min-width:32mm}.und .ttdi{height:9mm;display:flex;align-items:center;justify-content:center}.und .ttdi img{max-height:9mm;max-width:32mm}
 .und .ft{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:9.5px}
 @media print{
  @page{size:A4;margin:10mm}
@@ -498,9 +499,13 @@ $('#modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
 function formDialog(title, fields, vals, save, note) {
   modal(`<h3>${esc(title)}</h3>${note ? `<div class="msg warn" style="font-size:14px">${note}</div>` : ''}` + fields.map(f => `<label>${esc(f.l)}</label>` +
     (f.t === 'select' ? `<select data-k="${f.k}">${f.opts.map(o => `<option value="${esc(o[0])}" ${String(vals[f.k]) === String(o[0]) ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`
+      : f.t === 'foto' ? `<input data-k="${f.k}" type="text" value="${esc(vals[f.k] == null ? '' : vals[f.k])}" placeholder="${esc(f.ph || '')}" autocomplete="off">
+          <div class="row" style="margin-top:8px"><label class="btn sec sm" style="margin:0;cursor:pointer;font-weight:700">📷 ${esc(f.up || 'Upload Foto')}<input type="file" id="ff-${f.k}" accept="image/*" hidden></label><span id="fs-${f.k}" style="font-size:13px;color:var(--mut)"></span></div>
+          <img id="fp-${f.k}" alt="" hidden style="max-width:150px;max-height:190px;border-radius:12px;margin-top:8px;object-fit:cover;background:#f1f5f9">`
       : f.t === 'textarea' ? `<textarea data-k="${f.k}">${esc(vals[f.k] || '')}</textarea>`
         : `<input data-k="${f.k}" type="${f.t || 'text'}" value="${esc(vals[f.k] == null ? '' : vals[f.k])}" placeholder="${esc(f.ph || '')}" autocomplete="off">`)).join('') +
     `<div class="row" style="margin-top:16px"><button class="btn sec" onclick="closeModal()">Batal</button><button class="btn" id="fdOk" style="flex:1">Simpan</button></div>`);
+  if (fields.some(f => f.t === 'foto')) fotoInit(fields);
   $('#fdOk').onclick = async () => {
     const o = Object.assign({}, vals);
     document.querySelectorAll('#modalBox [data-k]').forEach(i => o[i.dataset.k] = i.value);
@@ -607,8 +612,10 @@ function editDesa(id) {
   if (v.JumlahRT === 0) v.JumlahRT = '';
   formDialog(id ? 'Ubah Desa' : 'Tambah Desa', [
     { k: 'Nama', l: 'Nama Desa', ph: 'Contoh: Sukamaju' },
-    { k: 'JumlahRT', l: 'Jumlah RT di desa ini (mis. 7 → nomor RT 001 sampai 007)', t: 'number', ph: 'Contoh: 7' }], v,
-    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, JumlahRT: o.JumlahRT }); toast('Tersimpan.'); reloadAdmin(); });
+    { k: 'JumlahRT', l: 'Jumlah RT di desa ini (mis. 7 → nomor RT 001 sampai 007)', t: 'number', ph: 'Contoh: 7' },
+    { k: 'Ketua', l: 'Nama Ketua Panitia (tampil di surat undangan)', ph: 'Nama lengkap beserta gelar' },
+    { k: 'TTD', l: 'Tanda Tangan Ketua Panitia (foto tanda tangan, sebaiknya PNG berlatar putih/transparan)', t: 'foto', png: true, up: 'Upload Tanda Tangan', ph: 'Terisi otomatis setelah upload' }], v,
+    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, JumlahRT: o.JumlahRT, Ketua: o.Ketua, TTD: o.TTD }); toast('Tersimpan.'); reloadAdmin(); });
 }
 async function hapusDesa(id) {
   const d = desaById(id), n = S.admin.calon.filter(c => c.DesaID === id).length, m = S.admin.admins.filter(a => a.DesaID === id).length;
@@ -673,7 +680,7 @@ function editCalon(id) {
   const v = id ? Object.assign({}, S.admin.calon.find(c => c.ID === id)) : { DesaID: S.selDesa, NoUrut: list.length ? Math.max(...list.map(c => Number(c.NoUrut))) + 1 : 1 };
   formDialog(id ? 'Ubah Calon' : 'Tambah Calon', [
     { k: 'NoUrut', l: 'Nomor Urut', t: 'number' }, { k: 'Nama', l: 'Nama Lengkap Calon' },
-    { k: 'Foto', l: 'URL Foto (link Google Drive "Siapa saja dengan link" atau URL gambar)', ph: 'https://…' },
+    { k: 'Foto', l: 'Foto Calon (upload, atau tempel URL gambar)', t: 'foto', ph: 'Terisi otomatis setelah Upload Foto' },
     { k: 'Visi', l: 'Visi', t: 'textarea' }, { k: 'Misi', l: 'Misi', t: 'textarea' }], v,
     async o => { await run('apiSimpanCalon', S.token, { ID: id || '', DesaID: S.selDesa, NoUrut: o.NoUrut, Nama: o.Nama, Foto: o.Foto, Visi: o.Visi, Misi: o.Misi }); toast('Tersimpan.'); reloadAdmin(); });
 }
@@ -817,6 +824,7 @@ async function hapusPem(id) {
 const maskNik = n => String(n).slice(0, 6) + '••••••' + String(n).slice(-4);
 function undangan(p, d, k, img) {
   const kosong = '<span style="display:inline-block;min-width:40mm;border-bottom:1px dotted #000">&nbsp;</span>';
+  const ttd = (d.Ketua || d.TTD) ? `<div class="ttd"><div>Ketua Panitia,</div><div class="ttdi">${d.TTD ? `<img src="${esc(foto(d.TTD))}" alt="">` : ''}</div><b>${esc(d.Ketua || '')}</b></div>` : '';
   return `<div class="und">
     <div class="t">UNDANGAN MEMILIH</div><div class="s">Pemilihan Kepala Desa Serentak</div>
     <div class="s"><b>Desa ${esc(d.Nama)}</b>${k.kecamatan ? ' · Kec. ' + esc(k.kecamatan) : ''}${k.kabupaten ? ' · Kab. ' + esc(k.kabupaten) : ''}</div>
@@ -828,11 +836,11 @@ function undangan(p, d, k, img) {
       ${p.Alamat ? `<div>${esc(p.Alamat)}</div>` : ''}</div>
       <div class="qr"><img src="${img}" alt="QR Code memilih">SCAN UNTUK<br>MEMILIH</div></div>
     <hr>
-    <div>Hari/Tanggal : <b>${k.tanggal ? esc(tglID(k.tanggal)) : kosong}</b></div>
+    <div class="jd"><div class="jl"><div>Hari/Tanggal : <b>${k.tanggal ? esc(tglID(k.tanggal)) : kosong}</b></div>
     <div>Pukul : <b>${k.mulai && k.selesai ? esc(jamStr(k)) : kosong}</b></div>
-    <div>Tempat : <b>${p.TPS ? 'TPS ' + esc(p.TPS) + (p.TPSLokasi ? ' · ' + esc(p.TPSLokasi) : '') : kosong}</b></div>
+    <div>Tempat : <b>${p.TPS ? 'TPS ' + esc(p.TPS) + (p.TPSLokasi ? ' · ' + esc(p.TPSLokasi) : '') : kosong}</b></div></div>${ttd}</div>
     <div style="margin-top:3px;font-size:10px">Datang ke TPS membawa <b>undangan ini dan KTP</b>, lalu scan QR Code. QR Code hanya berlaku <b>satu kali</b> — jangan difoto atau diberikan kepada orang lain.</div>
-    <div class="ft"><span>Tidak dapat diwakilkan.</span><span>Panitia Pemilihan</span></div></div>`;
+    <div class="ft"><span>Tidak dapat diwakilkan.</span>${ttd ? '' : '<span>Panitia Pemilihan</span>'}</div></div>`;
 }
 async function cetakUndangan(mode) {
   const d = desaById(S.selDesa), k = S.admin.set || {};
@@ -858,6 +866,8 @@ async function cetakUndangan(mode) {
   }
   loading(false);
   $('#printArea').innerHTML = '<div class="und-grid">' + out.join('') + '</div>';
+  // tunggu foto tanda tangan selesai dimuat sebelum dialog cetak dibuka
+  await Promise.all([...document.querySelectorAll('#printArea img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; setTimeout(r, 8000); })));
   window.print();
 }
 async function cetakHadir() {
@@ -896,6 +906,50 @@ function tSet() {
   $('#pg').onclick = async () => {
     try { await run('apiGantiPin', S.token, $('#p0').value, $('#p1').value); toast('PIN diganti.'); $('#p0').value = $('#p1').value = ''; if (sup) { S.admin.pinDefault = false; } } catch (e) { adminErr(e); }
   };
+}
+
+/* ====================== UPLOAD FOTO ====================== */
+/** Kecilkan foto di peramban (sisi terpanjang <= 1000 px, JPEG) agar unggahan ringan. Hasil: data URL. */
+function kecilkanFoto(file, opt) {
+  opt = opt || {};
+  return new Promise((ok, no) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let side = opt.side || 1000, q = 0.85, d = '';
+      for (let i = 0; i < 6; i++) {
+        const k = Math.min(1, side / Math.max(img.width, img.height)), c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+        const g = c.getContext('2d');
+        if (!opt.png) { g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); } // PNG: latar transparan dipertahankan
+        g.drawImage(img, 0, 0, c.width, c.height);
+        d = opt.png ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', q);
+        if (d.length < 700000) break;
+        side *= 0.8; q = Math.max(0.6, q - 0.07);
+      }
+      ok(d);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); no(new Error('File bukan gambar yang dapat dibaca. Gunakan JPG atau PNG.')); };
+    img.src = url;
+  });
+}
+function fotoInit(fields) {
+  const ok = $('#fdOk');
+  fields.filter(f => f.t === 'foto').forEach(f => {
+    const inp = $('#ff-' + f.k), st = $('#fs-' + f.k), pv = $('#fp-' + f.k), url = $('#modalBox [data-k="' + f.k + '"]');
+    const prev = () => { const u = foto(url.value.trim()); pv.hidden = !u; if (u) pv.src = u; };
+    prev(); url.onchange = prev;
+    inp.onchange = async () => {
+      const file = inp.files[0]; if (!file) return;
+      ok.disabled = true; st.textContent = 'Memproses dan mengunggah…';
+      try {
+        const d = await kecilkanFoto(file, f.png ? { png: true, side: 600 } : {}); pv.src = d; pv.hidden = false;
+        const r = await quiet('apiUploadFoto', S.token, d.split(',')[1], f.png ? 'image/png' : 'image/jpeg');
+        url.value = r.url; st.textContent = '✔ Tersimpan di Google Drive.';
+      } catch (e) { st.textContent = ''; adminErr(e); }
+      ok.disabled = false; inp.value = '';
+    };
+  });
 }
 
 /* ====================== HALAMAN DESA (/namadesa dan /adminnamadesa) ====================== */
