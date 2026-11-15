@@ -85,19 +85,28 @@ body.pemilih header{display:none}
 .vstat{max-width:520px;margin:20px auto;text-align:center}
 .vstat .bigic{font-size:84px;line-height:1.1}.vstat h2{font-size:26px}.vstat p{font-size:18px}
 #printArea{display:none}
-.und-grid{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
-.und{border:1.5px solid #000;border-radius:6px;padding:6px 10px;font-size:11px;line-height:1.3;height:86mm;box-sizing:border-box;break-inside:avoid;page-break-inside:avoid;overflow:hidden;display:flex;flex-direction:column;color:#000;background:#fff}
-.und .t{font-weight:800;font-size:15px;text-align:center;letter-spacing:.5px}.und .s{text-align:center;font-size:10.5px}
-.und hr{border:0;border-top:1px solid #000;margin:4px 0}
-.und .nm{font-size:13.5px;font-weight:800}.und .no{display:inline-block;border:1.5px solid #000;border-radius:4px;padding:1px 8px;font-weight:800;font-size:12.5px}
-.und .mid{display:flex;gap:8px;align-items:center;justify-content:space-between}
-.und .mid .l{flex:1;min-width:0}
-.und .qr{flex:none;text-align:center;font-size:8.5px;font-weight:800;line-height:1.15}
-.und .qr img{display:block;width:30mm;height:30mm;image-rendering:pixelated;image-rendering:crisp-edges}
-.und .jd{display:flex;justify-content:space-between;align-items:flex-end;gap:6px}.und .jl{flex:1;min-width:0}.und .ttd{flex:none;text-align:center;font-size:10px;line-height:1.2;min-width:32mm}.und .ttdi{height:9mm;display:flex;align-items:center;justify-content:center}.und .ttdi img{max-height:9mm;max-width:32mm}
-.und .ft{margin-top:auto;display:flex;justify-content:space-between;align-items:flex-end;font-size:9.5px}
+.und-grid{display:block}
+.und{box-sizing:border-box;width:100%;height:142mm;padding:6mm 9mm 5mm;border:1px dashed #666;display:flex;flex-direction:column;color:#000;background:#fff;font-size:10.5pt;line-height:1.3;break-inside:avoid;page-break-inside:avoid;overflow:hidden}
+.und .uh{display:grid;grid-template-columns:26mm 1fr 26mm;align-items:center}
+.und .lg{width:24mm;height:24mm;object-fit:contain}
+.und .ut{text-align:center;font-weight:800;font-size:11.5pt;line-height:1.3}.und .t1{font-size:15pt;letter-spacing:.3px}
+.und .ul{border-top:2.5px solid #000;margin:2mm 0 3mm}
+.und .uk{font-size:10pt;margin-bottom:3mm;text-align:justify}
+.und .ub{flex:1;min-height:0;display:flex;gap:6mm}
+.und .uc1{flex:none;width:66mm;display:flex;flex-direction:column;gap:3mm}
+.und .ui div{display:flex;font-size:10.5pt}.und .ui span:first-child{width:30mm;flex:none}.und .ui span:last-child{min-width:0;word-break:break-word}
+.und .uq{width:42mm;height:42mm;border:1.5px solid #000;display:flex;align-items:center;justify-content:center;margin-top:auto}
+.und .uq img{width:39mm;height:39mm;image-rendering:pixelated;image-rendering:crisp-edges}
+.und .uc2{flex:1;min-width:0;display:flex;flex-direction:column;gap:3mm}
+.und .cb{border:1.5px solid #000;padding:2.5mm;display:flex;gap:3mm;justify-content:center;align-items:flex-start;height:40mm;box-sizing:border-box;overflow:hidden}
+.und .cd{flex:1;min-width:0;max-width:32mm;text-align:center}
+.und .cd img,.und .ph0{width:100%;height:25mm;object-fit:cover;border-radius:2px;background:#e2e8f0;display:flex;align-items:center;justify-content:center}
+.und .cn{font-size:8.5pt;line-height:1.15;font-weight:700;margin-top:1mm;word-break:break-word}
+.und .ttd2{margin-top:auto;text-align:center;font-weight:800;font-size:10pt;line-height:1.3}
+.und .ttdi{height:13mm;display:flex;align-items:center;justify-content:center}.und .ttdi img{max-height:13mm;max-width:45mm}
+.und .blk{display:inline-block;min-width:30mm;border-bottom:1px dotted #000}
 @media print{
- @page{size:A4;margin:10mm}
+ @page{size:A4;margin:5mm}
  body{background:#fff}body>*:not(#printArea){display:none!important}
  #printArea{display:block!important}#printArea h2{margin:0 0 8px;font-size:16px}
  #printArea table{font-size:12px}#printArea td,#printArea th{border:1px solid #000;padding:6px;height:30px;color:#000}
@@ -608,14 +617,17 @@ function tDesa() {
   $('#add').onclick = () => editDesa('');
 }
 function editDesa(id) {
-  const v = id ? Object.assign({}, desaById(id)) : {};
+  const v = id ? Object.assign({}, desaById(id)) : { Kabupaten: (S.admin.desa[0] || {}).Kabupaten || (S.admin.set || {}).kabupaten || '', Kecamatan: (S.admin.desa[0] || {}).Kecamatan || (S.admin.set || {}).kecamatan || '' };
+  if (id) { v.Kabupaten = v.Kabupaten || (S.admin.set || {}).kabupaten || ''; v.Kecamatan = v.Kecamatan || (S.admin.set || {}).kecamatan || ''; }
   if (v.JumlahRT === 0) v.JumlahRT = '';
   formDialog(id ? 'Ubah Desa' : 'Tambah Desa', [
     { k: 'Nama', l: 'Nama Desa', ph: 'Contoh: Sukamaju' },
+    { k: 'Kabupaten', l: 'Nama Kabupaten (tampil di kop undangan)', ph: 'Contoh: Hulu Sungai Utara' },
+    { k: 'Kecamatan', l: 'Nama Kecamatan (tampil di kop undangan)', ph: 'Contoh: Amuntai Tengah' },
     { k: 'JumlahRT', l: 'Jumlah RT di desa ini (mis. 7 → nomor RT 001 sampai 007)', t: 'number', ph: 'Contoh: 7' },
     { k: 'Ketua', l: 'Nama Ketua Panitia (tampil di surat undangan)', ph: 'Nama lengkap beserta gelar' },
     { k: 'TTD', l: 'Tanda Tangan Ketua Panitia (foto tanda tangan, sebaiknya PNG berlatar putih/transparan)', t: 'foto', png: true, up: 'Upload Tanda Tangan', ph: 'Terisi otomatis setelah upload' }], v,
-    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, JumlahRT: o.JumlahRT, Ketua: o.Ketua, TTD: o.TTD }); toast('Tersimpan.'); reloadAdmin(); });
+    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, Kabupaten: o.Kabupaten, Kecamatan: o.Kecamatan, JumlahRT: o.JumlahRT, Ketua: o.Ketua, TTD: o.TTD }); toast('Tersimpan.'); reloadAdmin(); });
 }
 async function hapusDesa(id) {
   const d = desaById(id), n = S.admin.calon.filter(c => c.DesaID === id).length, m = S.admin.admins.filter(a => a.DesaID === id).length;
@@ -822,25 +834,29 @@ async function hapusPem(id) {
   try { await run('apiHapusPemilih', S.token, id); S.pemilih = S.pemilih.filter(x => x.ID !== id); delete S.sel[id]; drawPlist(); loadPub(true); } catch (e) { adminErr(e); }
 }
 const maskNik = n => String(n).slice(0, 6) + '••••••' + String(n).slice(-4);
-function undangan(p, d, k, img) {
-  const kosong = '<span style="display:inline-block;min-width:40mm;border-bottom:1px dotted #000">&nbsp;</span>';
-  const ttd = (d.Ketua || d.TTD) ? `<div class="ttd"><div>Ketua Panitia,</div><div class="ttdi">${d.TTD ? `<img src="${esc(foto(d.TTD))}" alt="">` : ''}</div><b>${esc(d.Ketua || '')}</b></div>` : '';
+const LOGO = BASE + (((window.APP_CONFIG || {}).LOGO) || 'logo.png'); // logo kabupaten: file di repository GitHub
+/** Undangan setengah A4 (2 per lembar): kop + logo, data pemilih, QR, calon, tanda tangan ketua panitia. */
+function undangan(p, d, k, img, calon) {
+  const kosong = '<span class="blk">&nbsp;</span>';
+  const kab = d.Kabupaten || k.kabupaten, kec = d.Kecamatan || k.kecamatan;
+  const tgl = k.tanggal ? esc(tglID(k.tanggal)) : kosong, jam = k.mulai && k.selesai ? esc(jamStr(k)) : kosong;
+  const tempat = p.TPS ? 'TPS ' + esc(p.TPS) + (p.TPSLokasi ? ' (' + esc(p.TPSLokasi) + ')' : '') : kosong;
+  const cds = (calon || []).map(c => { const u = foto(c.Foto); return `<div class="cd">${u ? `<img src="${esc(u)}" alt="">` : '<div class="ph0">👤</div>'}<div class="cn">${esc(c.NoUrut)}. ${esc(c.Nama)}</div></div>`; }).join('') || '<div class="cn">Daftar calon belum tersedia</div>';
   return `<div class="und">
-    <div class="t">UNDANGAN MEMILIH</div><div class="s">Pemilihan Kepala Desa Serentak</div>
-    <div class="s"><b>Desa ${esc(d.Nama)}</b>${k.kecamatan ? ' · Kec. ' + esc(k.kecamatan) : ''}${k.kabupaten ? ' · Kab. ' + esc(k.kabupaten) : ''}</div>
-    <hr>
-    <div class="mid"><div class="l">
-      <div class="row sp" style="gap:4px"><span>Kepada Yth.</span><span class="no">No. ${esc(p.NoUndangan)}</span></div>
-      <div class="nm">${esc(p.Nama)}</div>
-      <div>NIK: ${esc(maskNik(p.NIK))}${p.RT ? ' · <b>RT ' + esc(p.RT) + '</b>' : ''}</div>
-      ${p.Alamat ? `<div>${esc(p.Alamat)}</div>` : ''}</div>
-      <div class="qr"><img src="${img}" alt="QR Code memilih">SCAN UNTUK<br>MEMILIH</div></div>
-    <hr>
-    <div class="jd"><div class="jl"><div>Hari/Tanggal : <b>${k.tanggal ? esc(tglID(k.tanggal)) : kosong}</b></div>
-    <div>Pukul : <b>${k.mulai && k.selesai ? esc(jamStr(k)) : kosong}</b></div>
-    <div>Tempat : <b>${p.TPS ? 'TPS ' + esc(p.TPS) + (p.TPSLokasi ? ' · ' + esc(p.TPSLokasi) : '') : kosong}</b></div></div>${ttd}</div>
-    <div style="margin-top:3px;font-size:10px">Datang ke TPS membawa <b>undangan ini dan KTP</b>, lalu scan QR Code. QR Code hanya berlaku <b>satu kali</b> — jangan difoto atau diberikan kepada orang lain.</div>
-    <div class="ft"><span>Tidak dapat diwakilkan.</span>${ttd ? '' : '<span>Panitia Pemilihan</span>'}</div></div>`;
+    <div class="uh"><img class="lg" src="${esc(LOGO)}" alt="" onerror="this.style.visibility='hidden'">
+      <div class="ut"><div class="t1">PEMILIHAN KEPALA DESA</div>${kab ? `<div>Kab. ${esc(kab)}</div>` : ''}${kec ? `<div>Kec. ${esc(kec)}</div>` : ''}<div>Desa ${esc(d.Nama)}</div></div><div></div></div>
+    <div class="ul"></div>
+    <div class="uk">Bapak/Ibu/Saudara/i diundang untuk menggunakan hak pilih pada hari <b>${tgl}</b>, pukul <b>${jam}</b>, bertempat di <b>${tempat}</b>. Bawa undangan ini dan KTP, lalu scan QR Code. QR Code hanya berlaku satu kali dan tidak dapat diwakilkan; jangan difoto atau diberikan kepada orang lain.</div>
+    <div class="ub">
+      <div class="uc1"><div class="ui">
+        <div><span>NIK</span><span>: ${esc(maskNik(p.NIK))}</span></div><div><span>Nama</span><span>: ${esc(p.Nama)}</span></div>
+        <div><span>RT</span><span>: ${esc(p.RT) || '-'}</span></div><div><span>TPS</span><span>: ${esc(p.TPS) || '-'}</span></div>
+        <div><span>No. Undangan</span><span>: ${esc(p.NoUndangan)}</span></div></div>
+        <div class="uq"><img src="${img}" alt="QR Code memilih"></div></div>
+      <div class="uc2"><div class="cb">${cds}</div>
+        <div class="ttd2"><div>Panitia Pemilihan Kepala Desa</div><div>Desa ${esc(d.Nama)}</div><div>Ketua,</div>
+          <div class="ttdi">${d.TTD ? `<img src="${esc(foto(d.TTD))}" alt="">` : ''}</div><div>${esc(d.Ketua || '') || '&nbsp;'}</div></div></div>
+    </div></div>`;
 }
 async function cetakUndangan(mode) {
   const d = desaById(S.selDesa), k = S.admin.set || {};
@@ -861,7 +877,7 @@ async function cetakUndangan(mode) {
   const sep = base.indexOf('?') >= 0 ? '&' : '?', out = [];
   const total = r.pemilih.length;
   for (let i = 0; i < total; i++) {
-    out.push(undangan(r.pemilih[i], d, k, QR.dataUrl(base + sep + 'k=' + r.pemilih[i].Kode, 5)));
+    out.push(undangan(r.pemilih[i], d, k, QR.dataUrl(base + sep + 'k=' + r.pemilih[i].Kode, 8), r.calon));
     if (i % 25 === 24) { loading(true, 'Membuat QR Code… ' + (i + 1) + ' / ' + total); await sleep(0); }
   }
   loading(false);
@@ -886,8 +902,6 @@ function tSet() {
   $('#tabBody').innerHTML = `<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
     ${sup ? `<div class="card"><h3>Jadwal &amp; Data Acara</h3>
       <div class="msg ${S.admin.status === 'Dibuka' ? 'ok' : 'info'}" style="font-size:14px">Status sekarang: <b>${stLabel(S.admin.status)}</b>. Pemilihan <b>dibuka dan ditutup otomatis</b> sesuai tanggal dan jam di bawah (zona ${esc(k.zona || '')}). Untuk memperpanjang, ubah jam selesai.</div>
-      <label for="sK">Nama Kecamatan</label><input id="sK" value="${esc(k.kecamatan)}" placeholder="Contoh: Amuntai Tengah">
-      <label for="sB">Kabupaten</label><input id="sB" value="${esc(k.kabupaten)}" placeholder="Contoh: Hulu Sungai Utara">
       <label for="sT">Tanggal Pemilihan</label><input id="sT" type="date" value="${esc(k.tanggal)}">
       <div class="row" style="flex-wrap:nowrap"><div style="flex:1"><label for="sM">Jam mulai</label><input id="sM" type="time" value="${esc(k.mulai)}"></div><div style="flex:1"><label for="sS">Jam selesai</label><input id="sS" type="time" value="${esc(k.selesai)}"></div></div>
       <label for="sU">Alamat situs untuk QR Code (opsional)</label><input id="sU" value="${esc(S.admin.urlManual)}" placeholder="${esc(location.origin + BASE)}">
@@ -899,7 +913,7 @@ function tSet() {
       <div style="margin-top:14px"><button class="btn" id="pg">Simpan PIN</button></div></div></div>`;
   if (sup) $('#sv').onclick = async () => {
     try {
-      await run('apiPengaturanSimpan', S.token, { kecamatan: $('#sK').value, kabupaten: $('#sB').value, tanggal: $('#sT').value, mulai: $('#sM').value, selesai: $('#sS').value, url: $('#sU').value });
+      await run('apiPengaturanSimpan', S.token, { tanggal: $('#sT').value, mulai: $('#sM').value, selesai: $('#sS').value, url: $('#sU').value });
       toast('Tersimpan.'); S.admin = await run('apiInit', S.token); loadPub(true); tSet();
     } catch (e) { adminErr(e); }
   };
