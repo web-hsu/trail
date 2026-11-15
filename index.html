@@ -8,7 +8,7 @@
 :root{--pri:#0f766e;--pri2:#14b8a6;--pri-soft:#ccfbf1;--bg:#f1f5f9;--card:#fff;--tx:#0f172a;--mut:#64748b;--line:#e2e8f0;--red:#dc2626;--amb:#d97706;--grn:#16a34a}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);font-size:16px;line-height:1.45}
-.wrap{max-width:1100px;margin:0 auto;padding:0 14px}
+.wrap{max-width:1280px;margin:0 auto;padding:0 14px}
 header{background:linear-gradient(135deg,#064e3b,var(--pri));color:#fff;position:sticky;top:0;z-index:20;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px}
 .brand{display:flex;align-items:center;gap:10px;font-size:26px}
@@ -66,6 +66,18 @@ table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:8px 6px;b
 #loading{position:fixed;inset:0;background:rgba(255,255,255,.55);z-index:80;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-weight:700;color:var(--pri)}
 .spin{width:46px;height:46px;border:5px solid var(--pri-soft);border-top-color:var(--pri);border-radius:50%;animation:s .8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
 .seg{display:flex;gap:6px;margin-bottom:6px}.seg button{flex:1;background:#fff;border:2px solid var(--line);padding:11px;border-radius:10px;font-weight:700;cursor:pointer;font-size:15px}.seg button.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+/* tata letak admin: menu di kiri */
+.adm{display:grid;grid-template-columns:240px minmax(0,1fr);gap:18px;align-items:start}
+.side{position:sticky;top:84px;background:#fff;border-radius:16px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.side .who{padding:6px 8px 12px;border-bottom:1px solid var(--line);margin-bottom:8px}.side .who b{display:block;font-size:16px}.side .who small{color:var(--mut)}
+.side .tabs{flex-direction:column;overflow:visible;margin:0 0 10px;padding:0;gap:4px}
+.side .tabs button{text-align:left;border:0;background:transparent;width:100%;display:flex;gap:10px;align-items:center;padding:11px 12px}
+.side .tabs button::before{content:attr(data-ic);width:22px;text-align:center}
+.side .tabs button:hover:not(.on){background:#f1f5f9}
+.side .tabs button.on{background:var(--pri);color:#fff}
+.side .out{width:100%}
+.ptitle{margin:0 0 12px}
+@media(max-width:800px){.adm{grid-template-columns:minmax(0,1fr)}.side{position:static}.side .tabs{flex-direction:row;flex-wrap:wrap;overflow:visible;margin-bottom:8px}.side .tabs button{width:auto;padding:9px 11px;font-size:14px;gap:6px}.side .tabs button::before{width:auto}.side .who{display:none}.side .out{width:auto}}
 /* mode pemilih (hasil scan QR) */
 body.pemilih header{display:none}
 .vhead{background:linear-gradient(135deg,#064e3b,var(--pri));color:#fff;border-radius:18px;padding:18px;text-align:center;margin-bottom:14px}
@@ -548,8 +560,13 @@ function drawAdmin() {
   clearInterval(S.pt);
   const sup = S.sesi.peran === 'super', tabs = tabsFor();
   const d0 = !sup && S.admin.desa[0];
-  $('#v-admin').innerHTML = `<div class="row sp"><div><h2 style="margin:0">${sup ? 'Panel Admin Kecamatan' : 'Admin Desa ' + esc(d0 ? d0.Nama : '')}</h2><small style="color:var(--mut)">${esc(S.sesi.nama || '')}</small></div><button class="btn sec sm" onclick="logout()">Keluar</button></div>
-    <div class="tabs" style="margin-top:12px">${tabs.map(t => `<button class="${S.tab === t[0] ? 'on' : ''}" onclick="S.tab='${t[0]}';S.sel={};drawAdmin()">${t[1]}</button>`).join('')}</div><div id="tabBody"></div>`;
+  const ic = { desa: '🏘️', calon: '🧑‍💼', admin: '👥', pemilih: '🗒️', rekap: '📊', set: '⚙️' };
+  const cur = tabs.find(t => t[0] === S.tab);
+  $('#v-admin').innerHTML = `<div class="adm"><aside class="side">
+      <div class="who"><b>${sup ? 'Admin Kecamatan' : 'Admin Desa ' + esc(d0 ? d0.Nama : '')}</b><small>${esc(S.sesi.nama || '')}</small></div>
+      <div class="tabs">${tabs.map(t => `<button data-ic="${ic[t[0]] || '•'}" class="${S.tab === t[0] ? 'on' : ''}" onclick="S.tab='${t[0]}';S.sel={};drawAdmin()">${t[1]}</button>`).join('')}</div>
+      <button class="btn sec sm out" onclick="logout()">⎋ Keluar</button></aside>
+    <section class="content"><h2 class="ptitle">${esc(cur ? cur[1] : '')}</h2><div id="tabBody"></div></section></div>`;
   ({ desa: tDesa, calon: tCalon, admin: tAdmin, rekap: tRekap, pemilih: tPemilih, set: tSet })[S.tab]();
 }
 async function logout() {
