@@ -134,6 +134,17 @@ body.fs .dv{min-height:100vh;border-radius:0}
 .tpsg{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .tpsc{background:rgba(0,0,0,.22);border-radius:14px;padding:14px;font-size:clamp(14px,1.3vw,20px)}
 .dv .hrow .av{color:#0f172a}.dv .hrow.win .nm{color:#5eead4}.dv .bar-line{background:rgba(255,255,255,.2)}
+
+/* bilik suara: landscape layar penuh */
+body.bilik main{max-width:1200px;padding:10px 16px}
+body.bilik .vhead{padding:12px;margin-bottom:10px}body.bilik .vhead h2{font-size:clamp(20px,3.4vw,34px)}
+.pilg{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center}
+.pilv{position:relative;background:#0f172a;border-radius:16px;overflow:hidden;aspect-ratio:4/3;max-height:68vh;width:100%;display:flex;align-items:center;justify-content:center}
+.pilv video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+.pilv span{position:absolute;color:#94a3b8;font-weight:600}
+#rot{display:none;position:fixed;inset:0;z-index:9999;background:#064e3b;color:#fff;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:6px}
+@media(orientation:portrait){body.bilik #rot{display:flex}}
+@media(orientation:landscape) and (max-height:520px){body.bilik .vhead small{display:none}body.bilik .pilg h3{font-size:18px}.pilv{max-height:60vh}}
 </style>
 </head>
 <body>
@@ -1124,48 +1135,55 @@ function pilStop() {
   if (S.pilStream) S.pilStream.getTracks().forEach(t => t.stop());
   S.pilStream = null;
 }
-/** Halaman awal bilik suara: scan QR undangan (kamera, alat scan genggam, atau tempel tautan). */
+/** Layar penuh + kunci landscape (butuh sentuhan pengguna; Android Chrome mendukung, iOS tidak). */
+async function pilLayar() {
+  try { if (!document.fullscreenElement && document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen(); } catch (e) {}
+  try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape'); } catch (e) {}
+}
+/** Halaman awal bilik suara: scan QR undangan dengan kamera depan atau alat scan genggam. */
 function pilMasuk() {
   clearTimeout(S.pilT); pilStop(); closeModal(); S.kode = ''; S.vCalon = null;
   const h = S.pilInfo, k = h.kec || {};
   const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
   const j = k.tanggal && k.mulai && k.selesai ? tglID(k.tanggal) + ' · pukul ' + jamStr(k) : '';
   const kam = 'BarcodeDetector' in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
-  vTampil(`<div class="vhead"><small>Bilik Suara</small><h2>Pilkades Desa ${esc(h.Nama)}</h2><small>${esc(sub)}</small>${j ? `<small>${esc(j)}</small>` : ''}</div>
-    <div class="card center">
-      <div style="font-size:64px;line-height:1.1">📷</div>
-      <h3 style="margin:6px 0">Scan QR Code pada undangan</h3>
-      <p style="color:var(--mut);margin:0 0 12px">${kam ? 'Tekan <b>Buka Kamera</b>, lalu arahkan QR Code undangan ke kamera.' : 'Gunakan alat scan, atau scan QR Code dengan kamera bawaan ponsel Anda.'}</p>
-      ${kam ? '<button class="btn big" id="pilCam">Buka Kamera</button>' : ''}
-      <video id="pilVid" playsinline muted hidden style="width:100%;max-width:420px;border-radius:14px;margin-top:12px;background:#000"></video>
-      <label for="pilKode" style="display:block;margin-top:16px;text-align:left">Alat scan genggam / tempel tautan QR</label>
-      <input id="pilKode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Hasil scan akan terisi di sini">
-      <button class="btn sec" id="pilOk" style="margin-top:8px;width:100%">Lanjut</button>
+  vTampil(`<div class="vhead"><small>Bilik Suara</small><h2>Pilkades Desa ${esc(h.Nama)}</h2><small>${esc(sub)}${j ? ' · ' + esc(j) : ''}</small></div>
+    <div class="card pilg">
+      <div class="center">
+        <div style="font-size:56px;line-height:1.1">🗳️</div>
+        <h3 style="margin:6px 0">Scan QR Code pada undangan</h3>
+        <p style="color:var(--mut);margin:0 0 12px">${kam ? 'Tekan <b>Pilih Kepala Desa</b>, lalu sejajarkan QR Code undangan dengan kamera depan.' : 'Gunakan alat scan, atau scan QR Code dengan kamera bawaan ponsel Anda.'}</p>
+        ${kam ? '<button class="btn big" id="pilCam">Pilih Kepala Desa</button>' : ''}
+        <label for="pilKode" style="display:block;margin-top:16px;text-align:left">Alat scan genggam / tempel tautan QR</label>
+        <input id="pilKode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Hasil scan akan terisi di sini">
+      </div>
+      <div class="pilv"><video id="pilVid" playsinline muted></video><span id="pilVt">Kamera belum aktif</span></div>
     </div>`);
   const kirim = () => {
     const kd = ambilKode($('#pilKode').value);
-    if (!kd) { toast('Kode tidak dikenali. Scan ulang QR Code pada undangan.', 4000); $('#pilKode').select(); return; }
-    pilKirim(kd);
+    if (kd) pilKirim(kd);
   };
-  $('#pilOk').onclick = kirim;
-  $('#pilKode').onkeydown = e => { if (e.key === 'Enter') kirim(); };
-  if ($('#pilCam')) $('#pilCam').onclick = pilKamera;
-  if (!('ontouchstart' in window)) $('#pilKode').focus(); // alat scan genggam mengetik lalu menekan Enter
+  $('#pilKode').oninput = kirim; // otomatis lanjut begitu kode terbaca (tempel / alat scan)
+  $('#pilKode').onkeydown = e => { if (e.key === 'Enter') { if (ambilKode($('#pilKode').value)) kirim(); else toast('Kode tidak dikenali. Scan ulang QR Code pada undangan.', 4000); } };
+  if ($('#pilCam')) $('#pilCam').onclick = async () => { S.pilAuto = true; await pilLayar(); pilKamera(); };
+  if (kam && S.pilAuto) pilKamera(); // pemilih berikutnya: kamera langsung aktif
+  else if (!('ontouchstart' in window)) $('#pilKode').focus();
 }
 async function pilKamera() {
-  const v = $('#pilVid');
+  const v = $('#pilVid'); if (!v) return;
   try {
     S.pilDet = S.pilDet || new BarcodeDetector({ formats: ['qr_code'] });
-    S.pilStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-    v.srcObject = S.pilStream; v.hidden = false; await v.play();
-  } catch (e) { pilStop(); return toast('Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan kolom di bawah.', 6000); }
+    S.pilStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'user' } }, audio: false }); // kamera depan (selfie)
+    v.srcObject = S.pilStream; await v.play();
+    if ($('#pilVt')) $('#pilVt').hidden = true;
+  } catch (e) { pilStop(); return toast('Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan kolom scan.', 6000); }
   const tick = async () => {
     if (!S.pilStream) return;
     try {
       const r = await S.pilDet.detect(v), kd = r.length ? ambilKode(r[0].rawValue) : '';
       if (kd) return pilKirim(kd);
     } catch (e) {}
-    S.pilRaf = setTimeout(tick, 250);
+    S.pilRaf = setTimeout(tick, 200);
   };
   tick();
 }
@@ -1179,8 +1197,9 @@ async function pilKirim(kode) {
   if (r.state === 'pilih') S.pilT = setTimeout(pilMasuk, 300000); // layar kembali ke awal bila ditinggal 5 menit
 }
 function mulaiPilihDesa(h) {
-  document.body.classList.add('pemilih');
+  document.body.classList.add('pemilih', 'bilik');
   S.pilDesa = h.ID; S.pilInfo = h;
+  document.body.insertAdjacentHTML('beforeend', '<div id="rot"><div style="font-size:72px">📱↻</div><h2>Putar perangkat ke mode landscape</h2><p>Bilik suara hanya dapat dipakai dalam tampilan landscape layar penuh.</p><button class="btn big" onclick="pilLayar()">Layar penuh landscape</button></div>');
   $('#v-pemilih').hidden = false;
   const kd = ambilKode(S.kodeAwal); S.kodeAwal = '';
   if (kd) return pilKirim(kd);
