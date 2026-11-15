@@ -393,7 +393,7 @@ function renderDash() {
       const pct = d.dpt ? Math.round(d.sudah * 100 / d.dpt) : 0;
       return `<div class="card desa" onclick="openDesa('${d.ID}')">
         <h3>${esc(d.Nama)}</h3>
-        <small>${p.calon.filter(c => c.DesaID === d.ID).length} calon${d.Tempat ? ' · ' + esc(d.Tempat) : ''}</small>
+        <small>${p.calon.filter(c => c.DesaID === d.ID).length} calon${d.JumlahTPS ? ' · ' + d.JumlahTPS + ' TPS' : ''}</small>
         <div style="margin-top:8px;font-size:14px">Sudah memilih: <b>${d.sudah}</b> / ${d.dpt} pemilih (${pct}%)</div>
         <div class="bar-line"><i style="width:${pct}%"></i></div></div>`;
     }).join('')}</div>` : '<div class="card empty">Belum ada data desa.</div>'}`;
@@ -413,7 +413,7 @@ async function renderDetail() {
   const st = S.pub.status; S.detailStatus = st;
   const calon = S.pub.calon.filter(c => c.DesaID === d.ID);
   let html = `<button class="btn sec sm" onclick="S.detail=null;renderDash()">← Kembali</button>
-    <div class="row sp" style="margin:12px 0"><div><h2 style="margin:0">Desa ${esc(d.Nama)}</h2><small style="color:var(--mut)">${esc(d.Tempat)}</small></div>
+    <div class="row sp" style="margin:12px 0"><div><h2 style="margin:0">Desa ${esc(d.Nama)}</h2><small style="color:var(--mut)">${d.JumlahTPS ? d.JumlahTPS + ' TPS' : ''}</small></div>
     <span class="badge b-${st}" style="font-size:14px">${st === 'Dibuka' ? 'Pemilihan Berlangsung' : st === 'Selesai' ? 'Pemilihan Selesai' : 'Belum Dimulai'}</span></div>`;
   if (st === 'Selesai') {
     let h = null;
@@ -548,7 +548,7 @@ function drawLogin() {
 }
 function tabsFor() {
   return S.sesi && S.sesi.peran === 'super'
-    ? [['desa', 'Desa'], ['calon', 'Calon'], ['admin', 'Admin Desa'], ['pemilih', 'Pemilih & Undangan'], ['rekap', 'Rekap Suara'], ['set', 'Pengaturan']]
+    ? [['desa', 'Desa'], ['tps', 'Atur TPS'], ['calon', 'Calon'], ['admin', 'Admin Desa'], ['pemilih', 'Pemilih & Undangan'], ['rekap', 'Rekap Suara'], ['set', 'Pengaturan']]
     : [['pemilih', 'Pemilih & Undangan'], ['set', 'Akun Saya']];
 }
 async function renderAdmin() {
@@ -562,14 +562,14 @@ function drawAdmin() {
   clearInterval(S.pt);
   const sup = S.sesi.peran === 'super', tabs = tabsFor();
   const d0 = !sup && S.admin.desa[0];
-  const ic = { desa: '🏘️', calon: '🧑‍💼', admin: '👥', pemilih: '🗒️', rekap: '📊', set: '⚙️' };
+  const ic = { desa: '🏘️', tps: '📍', calon: '🧑‍💼', admin: '👥', pemilih: '🗒️', rekap: '📊', set: '⚙️' };
   const cur = tabs.find(t => t[0] === S.tab);
   $('#v-admin').innerHTML = `<div class="adm"><aside class="side">
       <div class="who"><b>${sup ? 'Admin Kecamatan' : 'Admin Desa ' + esc(d0 ? d0.Nama : '')}</b><small>${esc(S.sesi.nama || '')}</small></div>
       <div class="tabs">${tabs.map(t => `<button data-ic="${ic[t[0]] || '•'}" class="${S.tab === t[0] ? 'on' : ''}" onclick="S.tab='${t[0]}';sset('tab',S.tab);S.sel={};drawAdmin()">${t[1]}</button>`).join('')}</div>
       <button class="btn sec sm out" onclick="logout()">⎋ Keluar</button></aside>
     <section class="content"><h2 class="ptitle">${esc(cur ? cur[1] : '')}</h2><div id="tabBody"></div></section></div>`;
-  ({ desa: tDesa, calon: tCalon, admin: tAdmin, rekap: tRekap, pemilih: tPemilih, set: tSet })[S.tab]();
+  ({ desa: tDesa, tps: tTps, calon: tCalon, admin: tAdmin, rekap: tRekap, pemilih: tPemilih, set: tSet })[S.tab]();
 }
 async function logout() {
   try { await run('apiLogout', S.token); } catch (e) {}
@@ -597,9 +597,9 @@ const terkunci = () => S.admin.status !== 'Belum';
 function tDesa() {
   const a = S.admin;
   $('#tabBody').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">Data Desa</h3><button class="btn sm" id="add">+ Tambah Desa</button></div>
-    ${a.desa.length ? `<div class="tw"><table><tr><th>Desa</th><th>Tempat Pemilihan</th><th>Jumlah RT</th><th>Calon</th><th>Pemilih</th><th>Admin Desa</th><th></th></tr>${a.desa.map(d => {
+    ${a.desa.length ? `<div class="tw"><table><tr><th>Desa</th><th>Jumlah RT</th><th>TPS</th><th>Calon</th><th>Pemilih</th><th>Admin Desa</th><th></th></tr>${a.desa.map(d => {
       const adm = a.admins.filter(x => x.DesaID === d.ID).map(x => x.Nama);
-      return `<tr><td><b>${esc(d.Nama)}</b></td><td>${esc(d.Tempat) || '<span style="color:var(--mut)">-</span>'}</td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
+      return `<tr><td><b>${esc(d.Nama)}</b></td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${d.JumlahTPS || '<span style="color:var(--mut)">0</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="editDesa('${d.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusDesa('${d.ID}')">Hapus</button></td></tr>`;
     }).join('')}</table></div>` : '<div class="empty">Belum ada desa. Klik "+ Tambah Desa".</div>'}</div>`;
   $('#add').onclick = () => editDesa('');
@@ -609,14 +609,54 @@ function editDesa(id) {
   if (v.JumlahRT === 0) v.JumlahRT = '';
   formDialog(id ? 'Ubah Desa' : 'Tambah Desa', [
     { k: 'Nama', l: 'Nama Desa', ph: 'Contoh: Sukamaju' },
-    { k: 'Tempat', l: 'Tempat Pemilihan (TPS) — tercetak di undangan', ph: 'Contoh: Balai Desa Sukamaju' },
     { k: 'JumlahRT', l: 'Jumlah RT di desa ini (mis. 7 → nomor RT 001 sampai 007)', t: 'number', ph: 'Contoh: 7' }], v,
-    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, Tempat: o.Tempat, JumlahRT: o.JumlahRT }); toast('Tersimpan.'); reloadAdmin(); });
+    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, JumlahRT: o.JumlahRT }); toast('Tersimpan.'); reloadAdmin(); });
 }
 async function hapusDesa(id) {
   const d = desaById(id), n = S.admin.calon.filter(c => c.DesaID === id).length, m = S.admin.admins.filter(a => a.DesaID === id).length;
   if (!confirm(`Hapus desa "${d.Nama}"?\n\nIkut terhapus: ${n} calon, ${m} akun admin, dan ${d.dpt} pemilih.`)) return;
   try { await run('apiHapusDesa', S.token, id); toast('Desa dihapus.'); reloadAdmin(); } catch (e) { adminErr(e); }
+}
+
+/* ====================== ADMIN KECAMATAN: ATUR TPS ====================== */
+const tpsLabel = n => 'TPS ' + n;
+function tTps() {
+  $('#tabBody').innerHTML = `<div class="card">${desaPick('tTps')}</div><div id="tp"></div>`;
+  if (!S.selDesa) { $('#tp').innerHTML = '<div class="card empty">Tambahkan desa terlebih dahulu.</div>'; return; }
+  const d = desaById(S.selDesa), kunci = terkunci(), n = d.JumlahRT || 0;
+  const list = S.admin.tps.filter(t => t.DesaID === d.ID).sort((a, b) => a.NoTPS - b.NoTPS);
+  const dipakai = new Set(); list.forEach(t => t.RT.forEach(r => dipakai.add(r)));
+  const sisa = rtOpts(n).map(o => o[0]).filter(r => !dipakai.has(r));
+  $('#tp').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">TPS Desa ${esc(d.Nama)}</h3><button class="btn sm" id="add" ${n && !kunci ? '' : 'disabled'}>+ Tambah TPS</button></div>
+    <p style="color:var(--mut);font-size:14px;margin:6px 0 0">Tentukan RT mana saja yang termasuk setiap TPS. Saat pemilih dimasukkan berdasarkan RT, TPS-nya otomatis tampil di undangan. Contoh: TPS 01 untuk RT 001, TPS 02 untuk RT 002 dan RT 003.</p>
+    ${n ? `<div class="msg info" style="font-size:14px">Desa ini memiliki <b>${n} RT</b> (001 sampai ${pad3(n)}).</div>` : '<div class="msg warn">Jumlah RT desa ini belum diatur. Atur dulu di menu <b>Desa</b> (tombol Ubah).</div>'}
+    ${kunci ? '<div class="msg warn">Pemilihan sudah dimulai/selesai — pengaturan TPS dikunci.</div>' : ''}
+    ${list.length ? `<div class="tw"><table><tr><th>TPS</th><th>Tempat / lokasi</th><th>RT yang termasuk</th><th></th></tr>${list.map(t => `<tr><td><b>${tpsLabel(esc(t.NoTPS))}</b></td><td>${esc(t.Lokasi) || '<span style="color:var(--mut)">-</span>'}</td><td>${t.RT.map(r => 'RT ' + esc(r)).join(', ')}</td>
+      <td style="text-align:right;white-space:nowrap">${kunci ? '' : `<button class="btn sec sm" onclick="editTps('${t.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusTps('${t.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>` : (n ? '<div class="empty">Belum ada TPS. Klik "+ Tambah TPS".</div>' : '')}
+    ${n && list.length ? (sisa.length ? `<div class="msg warn" style="font-size:14px">RT yang belum masuk TPS manapun: <b>${sisa.map(r => 'RT ' + r).join(', ')}</b>. Pemilih di RT ini belum akan mendapat TPS di undangan.</div>` : '<div class="msg ok" style="font-size:14px">✔ Semua RT sudah masuk TPS.</div>') : ''}</div>`;
+  const add = $('#add'); if (add) add.onclick = () => editTps('');
+}
+function editTps(id) {
+  const d = desaById(S.selDesa), n = d.JumlahRT || 0, all = S.admin.tps.filter(t => t.DesaID === d.ID);
+  const cur = id ? all.find(t => t.ID === id) : { NoTPS: String(all.length ? Math.max(...all.map(t => Number(t.NoTPS))) + 1 : 1), Lokasi: '', RT: [] };
+  const milik = {}; all.forEach(t => { if (t.ID !== id) t.RT.forEach(r => milik[r] = t.NoTPS); });
+  modal(`<h3>${id ? 'Ubah' : 'Tambah'} TPS</h3>
+    <label for="tN">Nomor TPS</label><input id="tN" type="number" min="1" max="99" value="${esc(Number(cur.NoTPS))}">
+    <label for="tL">Tempat / lokasi TPS (opsional, tercetak di undangan)</label><input id="tL" value="${esc(cur.Lokasi)}" placeholder="Contoh: Balai Desa ${esc(d.Nama)}">
+    <label>RT yang termasuk TPS ini</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px">${rtOpts(n).map(o => { const r = o[0], lain = milik[r]; return `<label style="display:flex;gap:8px;align-items:center;margin:0;font-weight:600;padding:8px;border:2px solid var(--line);border-radius:10px;${lain ? 'opacity:.5' : ''}"><input type="checkbox" class="rtc" value="${r}" ${cur.RT.includes(r) ? 'checked' : ''} ${lain ? 'disabled' : ''}>RT ${r}${lain ? `<small style="font-weight:400"> (TPS ${esc(lain)})</small>` : ''}</label>`; }).join('')}</div>
+    <div class="row" style="margin-top:16px"><button class="btn sec" onclick="closeModal()">Batal</button><button class="btn" id="tOk" style="flex:1">Simpan</button></div>`);
+  $('#tOk').onclick = async () => {
+    try {
+      await run('apiSimpanTPS', S.token, { ID: id || '', DesaID: d.ID, NoTPS: $('#tN').value, Lokasi: $('#tL').value, RT: [...document.querySelectorAll('.rtc:checked')].map(c => c.value) });
+      closeModal(); toast('Tersimpan.'); reloadAdmin();
+    } catch (e) { adminErr(e); }
+  };
+}
+async function hapusTps(id) {
+  const t = S.admin.tps.find(x => x.ID === id);
+  if (!confirm('Hapus TPS ' + t.NoTPS + '? RT di dalamnya menjadi belum memiliki TPS.')) return;
+  try { await run('apiHapusTPS', S.token, id); toast('Dihapus.'); reloadAdmin(); } catch (e) { adminErr(e); }
 }
 
 /* ====================== ADMIN KECAMATAN: CALON ====================== */
@@ -696,7 +736,8 @@ const statusPem = p => p.SudahMemilih === 'Ya' ? '<span class="badge b-Selesai">
   : p.WaktuHadir ? `<span class="badge b-Pakai">Hadir ${esc(hariJam(p.WaktuHadir))}</span>` : '<span class="badge b-Belum">Belum hadir</span>';
 function rtInfo() {
   const d = desaById(S.selDesa), n = d ? d.JumlahRT : 0;
-  return n ? `<div class="msg ok" style="font-size:14px;margin:6px 0">Nomor RT yang dapat dipakai: <b>001 sampai ${pad3(n)}</b> (${n} RT).</div>`
+  const tp = (S.admin.tps || []).filter(t => t.DesaID === (d && d.ID)).sort((a, b) => a.NoTPS - b.NoTPS);
+  return n ? `<div class="msg ok" style="font-size:14px;margin:6px 0">Nomor RT yang dapat dipakai: <b>001 sampai ${pad3(n)}</b> (${n} RT).${tp.length ? '<br>' + tp.map(t => 'TPS ' + esc(t.NoTPS) + ': RT ' + t.RT.join(', ')).join(' · ') : '<br><span style="color:#92400e">TPS belum diatur oleh Admin Kecamatan.</span>'}</div>`
     : '<div class="msg warn" style="font-size:14px;margin:6px 0">Jumlah RT desa ini belum diatur. Admin Kecamatan mengaturnya di menu <b>Desa</b>; sampai itu, kolom RT dikosongkan.</div>';
 }
 const rtOpts = n => Array.from({ length: n }, (_, i) => [pad3(i + 1), 'RT ' + pad3(i + 1)]);
@@ -711,7 +752,7 @@ async function tPemilih() {
     <div style="margin-top:8px"><button class="btn" id="impGo">Tambahkan</button></div><div id="impRes"></div></div>
   <div class="card"><div class="row sp"><h3 style="margin:0" id="pcount"></h3></div>
     <div class="row" style="margin:10px 0"><button class="btn sm" id="pU1">🖨 Cetak Undangan (yang dicentang)</button><button class="btn sm" id="pU2">🖨 Cetak Undangan Semua</button><button class="btn sec sm" id="pH">🖨 Cetak Daftar Hadir</button></div>
-    <input id="q" placeholder="Cari nama, NIK, RT, atau no. undangan…" style="margin:4px 0 8px"><div id="plist"></div></div>`;
+    <input id="q" placeholder="Cari nama, NIK, RT, TPS, atau no. undangan…" style="margin:4px 0 8px"><div id="plist"></div></div>`;
   drawPlist();
   $('#q').oninput = drawPlist;
   $('#addOne').onclick = tambahSatu;
@@ -733,19 +774,19 @@ async function tPemilih() {
 }
 function drawPlist() {
   const q = ($('#q') ? $('#q').value : '').toLowerCase();
-  const list = S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan + ' RT ' + p.RT).toLowerCase().includes(q));
+  const list = S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan + ' RT ' + p.RT + ' TPS ' + p.TPS).toLowerCase().includes(q));
   const sudah = S.pemilih.filter(p => p.SudahMemilih === 'Ya').length, hadir = S.pemilih.filter(p => p.WaktuHadir).length;
   $('#pcount').textContent = `Daftar Pemilih (${S.pemilih.length}) · hadir ${hadir} · sudah memilih ${sudah}`;
   const all = list.length && list.slice(0, 300).every(p => S.sel[p.ID]);
-  $('#plist').innerHTML = list.length ? `<div class="tw"><table><tr><th><input type="checkbox" aria-label="Pilih semua" ${all ? 'checked' : ''} onchange="selAll(this.checked)"></th><th>Nama</th><th>RT</th><th>NIK</th><th>Undangan</th><th>Status</th><th></th></tr>${list.slice(0, 300).map(p => `<tr>
+  $('#plist').innerHTML = list.length ? `<div class="tw"><table><tr><th><input type="checkbox" aria-label="Pilih semua" ${all ? 'checked' : ''} onchange="selAll(this.checked)"></th><th>Nama</th><th>RT</th><th>TPS</th><th>NIK</th><th>Undangan</th><th>Status</th><th></th></tr>${list.slice(0, 300).map(p => `<tr>
     <td><input type="checkbox" aria-label="Pilih ${esc(p.Nama)}" ${S.sel[p.ID] ? 'checked' : ''} onchange="S.sel['${p.ID}']=this.checked"></td>
-    <td>${esc(p.Nama)}<br><small style="color:var(--mut)">${esc(p.Alamat)}</small></td><td>${esc(p.RT) || '-'}</td><td>${esc(p.NIK)}</td><td>${esc(p.NoUndangan)}</td>
+    <td>${esc(p.Nama)}<br><small style="color:var(--mut)">${esc(p.Alamat)}</small></td><td>${esc(p.RT) || '-'}</td><td>${p.TPS ? esc(p.TPS) : '<span style="color:var(--mut)">-</span>'}</td><td>${esc(p.NIK)}</td><td>${esc(p.NoUndangan)}</td>
     <td>${statusPem(p)}</td>
     <td style="text-align:right;white-space:nowrap">${p.SudahMemilih === 'Ya' ? '' : `<button class="btn sec sm" onclick="editPemilih('${p.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusPem('${p.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>${list.length > 300 ? '<small>Menampilkan 300 pertama — gunakan pencarian. Cetak “Semua” tetap mencakup seluruh pemilih.</small>' : ''}` : '<div class="empty">Belum ada pemilih.</div>';
 }
 function selAll(on) {
   const q = ($('#q') ? $('#q').value : '').toLowerCase();
-  S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan + ' RT ' + p.RT).toLowerCase().includes(q)).slice(0, 300).forEach(p => { if (on) S.sel[p.ID] = true; else delete S.sel[p.ID]; });
+  S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan + ' RT ' + p.RT + ' TPS ' + p.TPS).toLowerCase().includes(q)).slice(0, 300).forEach(p => { if (on) S.sel[p.ID] = true; else delete S.sel[p.ID]; });
   drawPlist();
 }
 function tambahSatu() {
@@ -791,7 +832,7 @@ function undangan(p, d, k, img) {
     <hr>
     <div>Hari/Tanggal : <b>${k.tanggal ? esc(tglID(k.tanggal)) : kosong}</b></div>
     <div>Pukul : <b>${k.mulai && k.selesai ? esc(jamStr(k)) : kosong}</b></div>
-    <div>Tempat : <b>${d.Tempat ? esc(d.Tempat) : kosong}</b></div>
+    <div>Tempat : <b>${p.TPS ? 'TPS ' + esc(p.TPS) + (p.TPSLokasi ? ' · ' + esc(p.TPSLokasi) : '') : kosong}</b></div>
     <div style="margin-top:3px;font-size:10px">Datang ke TPS membawa <b>undangan ini dan KTP</b>, lalu scan QR Code. QR Code hanya berlaku <b>satu kali</b> — jangan difoto atau diberikan kepada orang lain.</div>
     <div class="ft"><span>Tidak dapat diwakilkan.</span><span>Panitia Pemilihan</span></div></div>`;
 }
@@ -807,7 +848,9 @@ async function cetakUndangan(mode) {
   const base = r.url || (location.origin + location.pathname.replace(/index\.html$/, ''));
   if (!/^https:\/\//.test(base)) toast('Perhatian: situs belum dibuka lewat https (mis. masih lokal). QR Code tidak akan berfungsi untuk pemilih — buka dari alamat GitHub Pages.', 9000);
   const warn = [];
-  if (!k.tanggal || !k.mulai || !d.Tempat) warn.push('tanggal/jam pemilihan (Pengaturan) atau tempat desa belum diisi — kolomnya kosong di undangan');
+  if (!k.tanggal || !k.mulai) warn.push('tanggal/jam pemilihan (Pengaturan) belum diisi');
+  const tanpa = r.pemilih.filter(p => !p.TPS).length;
+  if (tanpa) warn.push(tanpa + ' pemilih belum memiliki TPS (RT-nya belum diatur ke TPS manapun oleh Admin Kecamatan) — kolom Tempat kosong di undangan');
   if (warn.length) toast('Perhatian: ' + warn.join('; ') + '.', 8000);
   const sep = base.indexOf('?') >= 0 ? '&' : '?', out = [];
   const total = r.pemilih.length;
@@ -824,8 +867,8 @@ async function cetakHadir() {
   let list;
   try { list = await run('apiPemilihList', S.token, S.selDesa); } catch (e) { return adminErr(e); }
   if (!list.length) return toast('Belum ada pemilih.');
-  $('#printArea').innerHTML = `<h2>Daftar Hadir Pemilih — Desa ${esc(d.Nama)}</h2><table style="width:100%;border-collapse:collapse"><tr><th>No</th><th>Nama</th><th>RT</th><th>NIK</th><th>Alamat</th><th>No. Undangan</th><th>Kehadiran (scan QR)</th></tr>` +
-    list.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.Nama)}</td><td>${esc(p.RT)}</td><td>${esc(maskNik(p.NIK))}</td><td>${esc(p.Alamat)}</td><td>${esc(p.NoUndangan)}</td><td>${p.WaktuHadir ? '✔ ' + esc(p.WaktuHadir.slice(11, 16)) : '—'}</td></tr>`).join('') + '</table>';
+  $('#printArea').innerHTML = `<h2>Daftar Hadir Pemilih — Desa ${esc(d.Nama)}</h2><table style="width:100%;border-collapse:collapse"><tr><th>No</th><th>Nama</th><th>RT</th><th>TPS</th><th>NIK</th><th>Alamat</th><th>No. Undangan</th><th>Kehadiran (scan QR)</th></tr>` +
+    list.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.Nama)}</td><td>${esc(p.RT)}</td><td>${esc(p.TPS)}</td><td>${esc(maskNik(p.NIK))}</td><td>${esc(p.Alamat)}</td><td>${esc(p.NoUndangan)}</td><td>${p.WaktuHadir ? '✔ ' + esc(p.WaktuHadir.slice(11, 16)) : '—'}</td></tr>`).join('') + '</table>';
   window.print();
 }
 
