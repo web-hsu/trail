@@ -528,9 +528,9 @@ function adminErr(e) {
   if (/Sesi berakhir/.test(e.message)) { S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); drawLogin(); }
 }
 function drawLogin() {
-  const desa = S.lm === 'desa';
+  const desa = !!S.fixDesa; // halaman /adminnamadesa: hanya Admin Desa; halaman utama: hanya Admin Kecamatan
   $('#v-admin').innerHTML = `<div class="card" style="max-width:420px;margin:30px auto"><h2>🔐 Login Admin${S.fixDesa ? ' Desa ' + esc(S.fixNama) : ''}</h2>
-    <div class="seg"><button class="${desa ? 'on' : ''}" onclick="S.lm='desa';drawLogin()">Admin Desa</button><button class="${desa ? '' : 'on'}" onclick="S.lm='super';drawLogin()">Admin Kecamatan</button></div>
+    ${desa ? '' : '<div class="msg info" style="font-size:14px">Admin Desa masuk melalui alamat halaman admin desanya masing-masing.</div>'}
     ${desa ? '<label for="usr">Username</label><input id="usr" autocomplete="off" autocapitalize="none" placeholder="Username dari Admin Kecamatan">' : ''}
     <label for="pin">PIN</label><input id="pin" type="password" placeholder="Masukkan PIN" autocomplete="off">
     <div style="margin-top:14px"><button class="btn big" id="lg">Masuk</button></div></div>`;
