@@ -26,7 +26,7 @@ h2{margin:6px 0 12px;font-size:22px}h3{margin:0 0 8px}
 .desa{cursor:pointer;border:2px solid transparent;transition:.15s}.desa:hover{border-color:var(--pri2);transform:translateY(-2px)}
 .desa h3{font-size:18px}.desa small{color:var(--mut)}
 .badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap}
-.b-Belum{background:#e2e8f0;color:#475569}.b-Dibuka{background:#dcfce7;color:#166534}.b-Selesai{background:#dbeafe;color:#1e40af}.b-Pakai{background:#fef3c7;color:#92400e}
+.b-Belum{background:#e2e8f0;color:#475569}.b-Dibuka{background:#dcfce7;color:#166534}.b-Selesai{background:#dbeafe;color:#1e40af}.b-Pakai{background:#fef3c7;color:#92400e}.b-Jeda{background:#fef3c7;color:#92400e}
 .bar-line{height:8px;background:var(--line);border-radius:9px;overflow:hidden;margin-top:8px}.bar-line i{display:block;height:100%;background:var(--pri2)}
 label{display:block;font-weight:600;margin:10px 0 4px;font-size:14px}
 input,select,textarea{width:100%;padding:13px 12px;border:2px solid var(--line);border-radius:12px;font-size:16px;font-family:inherit;background:#fff;color:var(--tx)}
@@ -406,7 +406,7 @@ function tglID(s) {
   return hari[d.getDay()] + ', ' + (+m[3]) + ' ' + bln[+m[2] - 1] + ' ' + m[1];
 }
 const jamStr = k => k && k.mulai && k.selesai ? k.mulai + ' – ' + k.selesai + ' ' + (k.zona || '') : '';
-const stLabel = s => s === 'Belum' ? 'Belum Dimulai' : s === 'Dibuka' ? 'Berlangsung' : 'Selesai';
+const stLabel = s => s === 'Belum' ? 'Belum Dimulai' : s === 'Dibuka' ? 'Berlangsung' : s === 'Jeda' ? 'Dijeda (Istirahat)' : 'Selesai';
 const pad3 = n => String(n).padStart(3, '0');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 /** Folder dasar situs (mis. "/" atau "/nama-repo/"), dihitung sekali saat halaman dibuka. */
@@ -501,6 +501,7 @@ function vScan(r) {
   if (r.state === 'salahdesa') return vStatus('🚫', 'Bukan pemilih desa ini', `QR Code ini terdaftar untuk desa <b>${esc(r.desa || '')}</b>. Silakan buka halaman bilik suara desa Anda.`);
   if (r.state === 'sudah') return vStatus('✅', 'Anda sudah memilih', 'QR Code ini sudah digunakan dan hanya berlaku satu kali. Terima kasih telah menggunakan hak pilih Anda.');
   if (r.state === 'belum') return vStatus('⏳', 'Pemilihan belum dimulai', `Silakan scan kembali pada waktu pemilihan.${j ? '<br><b>' + esc(j) + '</b>' : ''}`);
+  if (r.state === 'jeda') return vStatus('⏸', 'Pemilihan sedang istirahat', 'Pemilihan dijeda sementara oleh panitia. Silakan scan kembali QR Code Anda setelah pemilihan dilanjutkan. QR Code Anda belum terpakai.');
   if (r.state === 'selesai') return vStatus('🔒', 'Pemilihan telah selesai', 'Waktu pemilihan sudah berakhir. QR Code ini tidak dapat digunakan lagi.');
   const calon = r.calon || [];
   const n = calon.length;
@@ -1034,6 +1035,7 @@ function ensureCd() { if (!S.cdT) S.cdT = setInterval(tickCd, 1000); }
 function cdInfo(o) {
   const now = Date.now() + (S.off || 0);
   if (o.status === 'Selesai') return { label: 'Pemilihan telah selesai' };
+  if (o.status === 'Jeda') return { label: 'Pemilihan dijeda sementara (istirahat)' };
   if (o.status === 'Belum') return o.mulaiMs ? { label: 'Pemilihan dimulai dalam', ms: o.mulaiMs - now } : { label: 'Jadwal pemilihan belum ditetapkan' };
   return o.selesaiMs ? { label: 'Batas pemilihan berakhir dalam', ms: o.selesaiMs - now } : { label: 'Pemilihan sedang berlangsung' };
 }
@@ -1107,13 +1109,24 @@ function dvHtml(o, adm) {
 function ctlHtml(o) {
   const st = o.status;
   return `<div class="card"><div class="row sp" style="gap:14px"><div style="flex:1;min-width:240px"><h3 style="margin:0">Kontrol Pemilihan</h3>
-      <small style="color:var(--mut)">Status: <b>${stLabel(st)}</b>. Pemilihan juga dibuka dan ditutup otomatis sesuai jadwal. Tombol ini untuk memulai lebih awal atau mengakhiri lebih cepat.</small></div>
-    <div>${st === 'Belum' ? '<button class="btn" onclick="mulaiPilih()">▶ Mulai Pemilihan</button>' : st === 'Dibuka' ? '<button class="btn red" onclick="akhiriPilih()">■ Akhiri Pemilihan</button>' : '<span class="badge b-Selesai">Pemilihan selesai</span>'}</div></div>
+      <small style="color:var(--mut)">Status: <b>${stLabel(st)}</b>. Pemilihan juga dibuka dan ditutup otomatis sesuai jadwal. Tombol ini untuk memulai lebih awal, menjeda saat istirahat, atau mengakhiri lebih cepat.</small></div>
+    <div class="row" style="gap:8px;flex-wrap:wrap">${st === 'Belum' ? '<button class="btn" onclick="mulaiPilih()">▶ Mulai Pemilihan</button>'
+      : st === 'Dibuka' ? '<button class="btn" style="background:#d97706" onclick="jedaPilih()">⏸ Jeda / Istirahat</button><button class="btn red" onclick="akhiriPilih()">■ Akhiri Pemilihan</button>'
+      : st === 'Jeda' ? '<button class="btn" onclick="lanjutPilih()">▶ Lanjutkan Pemilihan</button><button class="btn red" onclick="akhiriPilih()">■ Akhiri Pemilihan</button>'
+      : '<span class="badge b-Selesai">Pemilihan selesai</span>'}</div></div>
+    ${st === 'Jeda' ? '<div class="msg warn">⏸ Pemilihan sedang dijeda. Pemilih belum bisa memilih sampai Anda menekan <b>Lanjutkan Pemilihan</b>. Jika jam selesai di jadwal terlewati saat dijeda, pemilihan otomatis berakhir.</div>' : ''}
     ${st === 'Belum' && !o.calon.length ? '<div class="msg warn">Belum ada calon. Admin Kecamatan perlu menambahkan calon sebelum pemilihan dapat dimulai.</div>' : ''}</div>`;
 }
 async function mulaiPilih() {
   if (!confirm('Mulai pemilihan Desa ' + S.dv.desa.Nama + ' sekarang?\n\nSetelah dimulai, data calon dan pengaturan TPS dikunci, dan pemilih dapat scan QR Code untuk memilih.')) return;
   try { await run('apiMulaiPemilihan', S.token, S.dvId); toast('Pemilihan dimulai.'); reloadAdmin(); } catch (e) { adminErr(e); }
+}
+async function jedaPilih() {
+  if (!confirm('JEDA pemilihan Desa ' + S.dv.desa.Nama + ' sekarang (istirahat)?\n\nSelama dijeda pemilih tidak dapat memilih, tetapi pemilihan TIDAK dianggap selesai. Tekan "Lanjutkan Pemilihan" untuk membuka kembali.')) return;
+  try { await run('apiJedaPemilihan', S.token, S.dvId); toast('Pemilihan dijeda.'); reloadAdmin(); } catch (e) { adminErr(e); }
+}
+async function lanjutPilih() {
+  try { await run('apiLanjutPemilihan', S.token, S.dvId); toast('Pemilihan dilanjutkan.'); reloadAdmin(); } catch (e) { adminErr(e); }
 }
 async function akhiriPilih() {
   if (!confirm('AKHIRI pemilihan Desa ' + S.dv.desa.Nama + ' sekarang?\n\nTindakan ini TIDAK dapat dibatalkan. Pemilih yang belum memilih tidak dapat memilih lagi, dan hasil suara langsung tampil di halaman publik.')) return;
