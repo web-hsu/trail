@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Memuat…</title>
 <script>
-/* GitHub Pages hanya menyajikan file yang ada. Alamat seperti /namadesa atau /adminnamadesa
+/* GitHub Pages hanya menyajikan file yang ada. Alamat seperti /namadesa, /adminnamadesa atau /pilkadesnamadesa
    jatuh ke halaman ini, lalu diteruskan ke index.html (folder dasar yang sama) dengan ?p=namahalaman.
    Folder dasar dihitung otomatis: segmen terakhir adalah nama halaman, sisanya folder situs
    (mis. /nama-repo/ untuk project site, atau / untuk user site / domain sendiri). */
@@ -13,7 +13,8 @@
   var segs = location.pathname.split('/').filter(Boolean);
   var slug = (segs.pop() || '').toLowerCase();
   var base = '/' + (segs.length ? segs.join('/') + '/' : '');
-  location.replace(location.origin + base + '?p=' + encodeURIComponent(slug));
+  var extra = location.search ? '&' + location.search.slice(1) : ''; // teruskan ?k=... (kode QR) bila ada
+  location.replace(location.origin + base + '?p=' + encodeURIComponent(slug) + extra);
 })();
 </script>
 </head>

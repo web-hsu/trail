@@ -452,7 +452,7 @@ function bacaKode() {
 }
 function vTampil(h) { $('#v-pemilih').innerHTML = h; window.scrollTo(0, 0); }
 function vStatus(ic, judul, isi, kelas) {
-  vTampil(`<div class="vstat card"><div class="bigic">${ic}</div><h2>${judul}</h2><p>${isi}</p>${kelas ? '' : ''}</div>`);
+  vTampil(`<div class="vstat card"><div class="bigic">${ic}</div><h2>${judul}</h2><p>${isi}</p>${S.pilDesa ? '<button class="btn big" style="margin-top:14px" onclick="pilMasuk()">Kembali ke Bilik Suara</button>' : ''}</div>`);
 }
 async function mulaiPemilih(kode) {
   S.kode = kode; S.view = 'pemilih';
@@ -468,6 +468,7 @@ function vScan(r) {
   const k = r.kec || {};
   const j = k.tanggal ? tglID(k.tanggal) + ', pukul ' + jamStr(k) : '';
   if (r.state === 'invalid') return vStatus('❌', 'QR Code tidak dikenali', 'Pastikan Anda memindai QR Code pada undangan resmi. Hubungi panitia di TPS jika masih bermasalah.');
+  if (r.state === 'salahdesa') return vStatus('🚫', 'Bukan pemilih desa ini', `QR Code ini terdaftar untuk desa <b>${esc(r.desa || '')}</b>. Silakan buka halaman bilik suara desa Anda.`);
   if (r.state === 'sudah') return vStatus('✅', 'Anda sudah memilih', 'QR Code ini sudah digunakan dan hanya berlaku satu kali. Terima kasih telah menggunakan hak pilih Anda.');
   if (r.state === 'belum') return vStatus('⏳', 'Pemilihan belum dimulai', `Silakan scan kembali pada waktu pemilihan.${j ? '<br><b>' + esc(j) + '</b>' : ''}`);
   if (r.state === 'selesai') return vStatus('🔒', 'Pemilihan telah selesai', 'Waktu pemilihan sudah berakhir. QR Code ini tidak dapat digunakan lagi.');
@@ -492,11 +493,13 @@ function vKonfirmasi(id) {
   $('#yes').onclick = async () => {
     $('#yes').disabled = true;
     try {
-      const r = await run('apiPilihQR', S.kode, id);
+      clearTimeout(S.pilT);
+      const r = await run('apiPilihQR', S.kode, id, S.pilDesa || null);
       closeModal();
+      if (r.ok && S.pilDesa) { S.vCalon = null; S.kode = ''; S.pilT = setTimeout(pilMasuk, 8000); return vStatus('✅', 'Terima kasih', 'Suara Anda sudah tercatat dan dijaga kerahasiaannya.<br><br>QR Code Anda tidak dapat dipakai memilih lagi. Layar akan kembali ke halaman scan dalam beberapa detik.'); }
       if (r.ok) { S.vCalon = null; return vStatus('✅', 'Terima kasih', 'Suara Anda sudah tercatat dan dijaga kerahasiaannya.<br><br>Halaman pemilihan ini telah <b>ditutup</b>. QR Code Anda tidak dapat dipakai memilih lagi.'); }
       if (r.state === 'error') return toast(r.pesan, 5000);
-      S.vCalon = null; vScan({ state: r.state, kec: S.pub && S.pub.kec });
+      S.vCalon = null; vScan({ state: r.state, desa: r.desa, kec: S.pub && S.pub.kec });
     } catch (e) { closeModal(); toast('Gagal mengirim. Periksa sambungan lalu coba lagi: ' + e.message, 6000); }
   };
 }
@@ -611,7 +614,7 @@ function tDesa() {
   $('#tabBody').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">Data Desa</h3><button class="btn sm" id="add">+ Tambah Desa</button></div>
     ${a.desa.length ? `<div class="tw"><table><tr><th>Desa</th><th>Jumlah RT</th><th>TPS</th><th>Calon</th><th>Pemilih</th><th>Admin Desa</th><th></th></tr>${a.desa.map(d => {
       const adm = a.admins.filter(x => x.DesaID === d.ID).map(x => x.Nama);
-      return `<tr><td><b>${esc(d.Nama)}</b><br><small><a href="${esc(BASE + d.Slug)}" target="_blank" rel="noopener">/${esc(d.Slug)}</a> · <a href="${esc(BASE + 'admin' + d.Slug)}" target="_blank" rel="noopener">/admin${esc(d.Slug)}</a></small></td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${d.JumlahTPS || '<span style="color:var(--mut)">0</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
+      return `<tr><td><b>${esc(d.Nama)}</b><br><small><a href="${esc(BASE + d.Slug)}" target="_blank" rel="noopener">/${esc(d.Slug)}</a> · <a href="${esc(BASE + 'admin' + d.Slug)}" target="_blank" rel="noopener">/admin${esc(d.Slug)}</a> · <a href="${esc(BASE + 'pilkades' + d.Slug)}" target="_blank" rel="noopener">/pilkades${esc(d.Slug)}</a></small></td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${d.JumlahTPS || '<span style="color:var(--mut)">0</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="editDesa('${d.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusDesa('${d.ID}')">Hapus</button></td></tr>`;
     }).join('')}</table></div>` : '<div class="empty">Belum ada desa. Klik "+ Tambah Desa".</div>'}</div>`;
   $('#add').onclick = () => editDesa('');
@@ -1090,7 +1093,8 @@ async function mulaiHalaman(slug) {
   ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = true);
   let h;
   try { h = await run('apiHalaman', slug); } catch (e) { return halamanGagal(e.message); }
-  document.title = (h.tipe === 'admin' ? 'Admin Desa ' : 'Desa ') + h.Nama + ' — Pilkades Serentak';
+  document.title = (h.tipe === 'admin' ? 'Admin Desa ' : h.tipe === 'pilih' ? 'Bilik Suara Desa ' : 'Desa ') + h.Nama + ' — Pilkades Serentak';
+  if (h.tipe === 'pilih') return mulaiPilihDesa(h);
   return h.tipe === 'admin' ? mulaiAdminDesa(h) : mulaiPublikDesa(h);
 }
 async function mulaiPublikDesa(h) {
@@ -1109,13 +1113,87 @@ function mulaiAdminDesa(h) {
   renderAdmin();
 }
 
+/* ====================== BILIK SUARA DESA (/pilkadesnamadesa) ====================== */
+/** Ambil kode pemilih dari hasil scan: tautan QR (…?k=KODE) atau kode polos. */
+function ambilKode(t) {
+  const m = String(t || '').trim().match(/(?:[?&]k=|^)(i[0-9a-f]{29})(?![0-9a-f])/i);
+  return m ? m[1].toLowerCase() : '';
+}
+function pilStop() {
+  clearTimeout(S.pilRaf);
+  if (S.pilStream) S.pilStream.getTracks().forEach(t => t.stop());
+  S.pilStream = null;
+}
+/** Halaman awal bilik suara: scan QR undangan (kamera, alat scan genggam, atau tempel tautan). */
+function pilMasuk() {
+  clearTimeout(S.pilT); pilStop(); closeModal(); S.kode = ''; S.vCalon = null;
+  const h = S.pilInfo, k = h.kec || {};
+  const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
+  const j = k.tanggal && k.mulai && k.selesai ? tglID(k.tanggal) + ' · pukul ' + jamStr(k) : '';
+  const kam = 'BarcodeDetector' in window && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  vTampil(`<div class="vhead"><small>Bilik Suara</small><h2>Pilkades Desa ${esc(h.Nama)}</h2><small>${esc(sub)}</small>${j ? `<small>${esc(j)}</small>` : ''}</div>
+    <div class="card center">
+      <div style="font-size:64px;line-height:1.1">📷</div>
+      <h3 style="margin:6px 0">Scan QR Code pada undangan</h3>
+      <p style="color:var(--mut);margin:0 0 12px">${kam ? 'Tekan <b>Buka Kamera</b>, lalu arahkan QR Code undangan ke kamera.' : 'Gunakan alat scan, atau scan QR Code dengan kamera bawaan ponsel Anda.'}</p>
+      ${kam ? '<button class="btn big" id="pilCam">Buka Kamera</button>' : ''}
+      <video id="pilVid" playsinline muted hidden style="width:100%;max-width:420px;border-radius:14px;margin-top:12px;background:#000"></video>
+      <label for="pilKode" style="display:block;margin-top:16px;text-align:left">Alat scan genggam / tempel tautan QR</label>
+      <input id="pilKode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Hasil scan akan terisi di sini">
+      <button class="btn sec" id="pilOk" style="margin-top:8px;width:100%">Lanjut</button>
+    </div>`);
+  const kirim = () => {
+    const kd = ambilKode($('#pilKode').value);
+    if (!kd) { toast('Kode tidak dikenali. Scan ulang QR Code pada undangan.', 4000); $('#pilKode').select(); return; }
+    pilKirim(kd);
+  };
+  $('#pilOk').onclick = kirim;
+  $('#pilKode').onkeydown = e => { if (e.key === 'Enter') kirim(); };
+  if ($('#pilCam')) $('#pilCam').onclick = pilKamera;
+  if (!('ontouchstart' in window)) $('#pilKode').focus(); // alat scan genggam mengetik lalu menekan Enter
+}
+async function pilKamera() {
+  const v = $('#pilVid');
+  try {
+    S.pilDet = S.pilDet || new BarcodeDetector({ formats: ['qr_code'] });
+    S.pilStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    v.srcObject = S.pilStream; v.hidden = false; await v.play();
+  } catch (e) { pilStop(); return toast('Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan kolom di bawah.', 6000); }
+  const tick = async () => {
+    if (!S.pilStream) return;
+    try {
+      const r = await S.pilDet.detect(v), kd = r.length ? ambilKode(r[0].rawValue) : '';
+      if (kd) return pilKirim(kd);
+    } catch (e) {}
+    S.pilRaf = setTimeout(tick, 250);
+  };
+  tick();
+}
+/** Kode terbaca: catat kehadiran dan tampilkan calon (hanya jika kode milik desa ini). */
+async function pilKirim(kode) {
+  pilStop(); S.kode = kode;
+  let r;
+  try { r = await run('apiScan', kode, S.pilDesa); }
+  catch (e) { return vStatus('⚠️', 'Tidak dapat memuat', 'Periksa sambungan internet lalu scan ulang QR Code pada undangan Anda.'); }
+  vScan(r);
+  if (r.state === 'pilih') S.pilT = setTimeout(pilMasuk, 300000); // layar kembali ke awal bila ditinggal 5 menit
+}
+function mulaiPilihDesa(h) {
+  document.body.classList.add('pemilih');
+  S.pilDesa = h.ID; S.pilInfo = h;
+  $('#v-pemilih').hidden = false;
+  const kd = ambilKode(S.kodeAwal); S.kodeAwal = '';
+  if (kd) return pilKirim(kd);
+  pilMasuk();
+}
+
 /* ====================== MULAI ====================== */
 (async () => {
   if (!API_URL) { document.body.classList.add('pemilih'); $('#v-dash').hidden = true; $('#v-pemilih').hidden = false; return vStatus('⚙️', 'Belum dikonfigurasi', 'Isi <b>API_URL</b> pada file <b>config.js</b> dengan alamat Web app Apps Script (berakhiran /exec).'); }
   const kode = await bacaKode();
-  if (kode) return mulaiPemilih(kode);
   const hal = (new URLSearchParams(location.search).get('p') || '').trim().toLowerCase();
-  if (hal) { history.replaceState(null, '', BASE + hal); return mulaiHalaman(hal); } // dari 404.html
+  if (hal) { S.kodeAwal = kode; history.replaceState(null, '', BASE + hal); return mulaiHalaman(hal); } // dari 404.html (kode QR ikut diteruskan)
+  if (kode) return mulaiPemilih(kode);
   await loadPub();
   if (S.token && sget('view') === 'admin') return go('admin'); // kembali ke panel admin setelah refresh
   renderDash();
