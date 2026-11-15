@@ -503,7 +503,7 @@ function vKonfirmasi(id) {
 
 /* ====================== MODAL ====================== */
 function modal(h) { $('#modalBox').innerHTML = h; $('#modal').hidden = false; }
-function closeModal() { $('#modal').hidden = true; }
+function closeModal() { $('#modal').hidden = true; $('#modalBox').style.maxWidth = ''; }
 $('#modal').onclick = e => { if (e.target.id === 'modal') closeModal(); };
 function formDialog(title, fields, vals, save, note) {
   modal(`<h3>${esc(title)}</h3>${note ? `<div class="msg warn" style="font-size:14px">${note}</div>` : ''}` + fields.map(f => `<label>${esc(f.l)}</label>` +
@@ -799,7 +799,7 @@ function drawPlist() {
     <td><input type="checkbox" aria-label="Pilih ${esc(p.Nama)}" ${S.sel[p.ID] ? 'checked' : ''} onchange="S.sel['${p.ID}']=this.checked"></td>
     <td>${esc(p.Nama)}<br><small style="color:var(--mut)">${esc(p.Alamat)}</small></td><td>${esc(p.RT) || '-'}</td><td>${p.TPS ? esc(p.TPS) : '<span style="color:var(--mut)">-</span>'}</td><td>${esc(p.NIK)}</td><td>${esc(p.NoUndangan)}</td>
     <td>${statusPem(p)}</td>
-    <td style="text-align:right;white-space:nowrap">${p.SudahMemilih === 'Ya' ? '' : `<button class="btn sec sm" onclick="editPemilih('${p.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusPem('${p.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>${list.length > 300 ? '<small>Menampilkan 300 pertama — gunakan pencarian. Cetak “Semua” tetap mencakup seluruh pemilih.</small>' : ''}` : '<div class="empty">Belum ada pemilih.</div>';
+    <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="lihatUndangan('${p.ID}')">👁 Lihat</button> ${p.SudahMemilih === 'Ya' ? '' : `<button class="btn sec sm" onclick="editPemilih('${p.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusPem('${p.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>${list.length > 300 ? '<small>Menampilkan 300 pertama — gunakan pencarian. Cetak “Semua” tetap mencakup seluruh pemilih.</small>' : ''}` : '<div class="empty">Belum ada pemilih.</div>';
 }
 function selAll(on) {
   const q = ($('#q') ? $('#q').value : '').toLowerCase();
@@ -857,6 +857,21 @@ function undangan(p, d, k, img, calon) {
         <div class="ttd2"><div>Panitia Pemilihan Kepala Desa</div><div>Desa ${esc(d.Nama)}</div><div>Ketua,</div>
           <div class="ttdi">${d.TTD ? `<img src="${esc(foto(d.TTD))}" alt="">` : ''}</div><div>${esc(d.Ketua || '') || '&nbsp;'}</div></div></div>
     </div></div>`;
+}
+/** Pratinjau satu undangan persis seperti hasil cetak (kotak dialog diperlebar, skala menyesuaikan layar). */
+async function lihatUndangan(id) {
+  const d = desaById(S.selDesa), k = S.admin.set || {};
+  let r;
+  try { r = await run('apiUndangan', S.token, S.selDesa, [id]); } catch (e) { return adminErr(e); }
+  if (!r.pemilih.length) return toast('Pemilih tidak ditemukan.');
+  const base = r.url || (location.origin + BASE), sep = base.indexOf('?') >= 0 ? '&' : '?';
+  const html = undangan(r.pemilih[0], d, k, QR.dataUrl(base + sep + 'k=' + r.pemilih[0].Kode, 8), r.calon);
+  modal(`<div class="row sp"><h3 style="margin:0">Pratinjau Undangan</h3><button class="btn sec sm" onclick="closeModal()">Tutup</button></div>
+    <div class="msg info" style="font-size:14px">Tampilan sesuai cetak: setengah A4, dua undangan per lembar. Logo, foto, dan tanda tangan bergantung pada data Desa dan Calon.</div>
+    <div id="upv" style="overflow:hidden"><div id="upi" style="width:200mm;transform-origin:0 0">${html}</div></div>`);
+  $('#modalBox').style.maxWidth = '860px';
+  const fit = () => { const sc = Math.min(1, $('#upv').clientWidth / $('#upi').offsetWidth); $('#upi').style.transform = 'scale(' + sc + ')'; $('#upv').style.height = ($('#upi').offsetHeight * sc) + 'px'; };
+  fit(); window.addEventListener('resize', fit, { once: true });
 }
 async function cetakUndangan(mode) {
   const d = desaById(S.selDesa), k = S.admin.set || {};
