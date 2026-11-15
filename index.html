@@ -1163,7 +1163,7 @@ function pilMasuk() {
         <div style="font-size:56px;line-height:1.1">🗳️</div>
         <h3 style="margin:6px 0">Scan QR Code pada undangan</h3>
         <p style="color:var(--mut);margin:0 0 12px">${kam ? 'Tekan <b>Pilih Kepala Desa</b>, lalu sejajarkan QR Code undangan dengan kamera depan.' : 'Gunakan alat scan, atau scan QR Code dengan kamera bawaan ponsel Anda.'}</p>
-        ${kam ? '<button class="btn big" id="pilCam">Pilih Kepala Desa</button>' : ''}
+        ${kam ? '<div style="display:flex;gap:10px;align-items:stretch"><button class="btn big" id="pilCam" style="flex:1">Pilih Kepala Desa</button><button class="btn sec big" id="pilFlip" type="button" title="Ganti kamera depan/belakang" aria-label="Ganti kamera depan atau belakang" style="flex:none;width:68px;padding:0;display:flex;align-items:center;justify-content:center"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><path d="M9 13a3 3 0 0 1 5-2l1 1M15 13a3 3 0 0 1-5 2l-1-1"/><path d="M14 10v2h2M10 16v-2H8"/></svg></button></div>' : ''}
         <label for="pilKode" style="display:block;margin-top:16px;text-align:left">Hasil Scan</label>
         <input id="pilKode" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ketik 5 karakter kode di bawah QR, atau pakai alat scan">
       </div>
@@ -1176,6 +1176,11 @@ function pilMasuk() {
   $('#pilKode').oninput = () => { clearTimeout(S.pilIn); S.pilIn = setTimeout(kirim, 450); }; // otomatis lanjut begitu kode lengkap (diketik, ditempel, atau alat scan)
   $('#pilKode').onkeydown = e => { if (e.key === 'Enter') { if (ambilKode($('#pilKode').value)) kirim(); else toast('Kode tidak dikenali. Scan ulang QR Code pada undangan.', 4000); } };
   if ($('#pilCam')) $('#pilCam').onclick = async () => { S.pilAuto = true; await pilLayar(); pilKamera(); };
+  if ($('#pilFlip')) $('#pilFlip').onclick = () => { // ganti kamera depan <-> belakang
+    S.pilFacing = S.pilFacing === 'environment' ? 'user' : 'environment';
+    toast(S.pilFacing === 'environment' ? 'Kamera belakang' : 'Kamera depan', 1500);
+    if (S.pilStream) { pilStop(); pilKamera(); }
+  };
   if (kam && S.pilAuto) pilKamera(); // pemilih berikutnya: kamera langsung aktif
   else if (!('ontouchstart' in window)) $('#pilKode').focus();
 }
@@ -1183,7 +1188,9 @@ async function pilKamera() {
   const v = $('#pilVid'); if (!v) return;
   try {
     S.pilDet = S.pilDet || new BarcodeDetector({ formats: ['qr_code'] });
-    S.pilStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'user' } }, audio: false }); // kamera depan (selfie)
+    const fm = S.pilFacing || 'user'; // bawaan: kamera depan (selfie)
+    S.pilStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: fm } }, audio: false });
+    v.style.transform = fm === 'user' ? 'scaleX(-1)' : 'none'; // cermin hanya untuk kamera depan
     v.srcObject = S.pilStream; await v.play();
     if ($('#pilVt')) $('#pilVt').hidden = true;
   } catch (e) { pilStop(); return toast('Kamera tidak dapat dibuka. Izinkan akses kamera atau gunakan kolom scan.', 6000); }
