@@ -343,6 +343,7 @@ function tglID(s) {
 }
 const jamStr = k => k && k.mulai && k.selesai ? k.mulai + ' – ' + k.selesai + ' ' + (k.zona || '') : '';
 const stLabel = s => s === 'Belum' ? 'Belum Dimulai' : s === 'Dibuka' ? 'Berlangsung' : 'Selesai';
+const pad3 = n => String(n).padStart(3, '0');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const S = { pub: null, token: sget('tk'), sesi: jparse(sget('ses')), admin: null, view: 'dash', detail: null, tab: sget('tab'), selDesa: sget('desa'), pemilih: [], sel: {}, lm: 'desa', kode: '' };
@@ -596,19 +597,21 @@ const terkunci = () => S.admin.status !== 'Belum';
 function tDesa() {
   const a = S.admin;
   $('#tabBody').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">Data Desa</h3><button class="btn sm" id="add">+ Tambah Desa</button></div>
-    ${a.desa.length ? `<div class="tw"><table><tr><th>Desa</th><th>Tempat Pemilihan</th><th>Calon</th><th>Pemilih</th><th>Admin Desa</th><th></th></tr>${a.desa.map(d => {
+    ${a.desa.length ? `<div class="tw"><table><tr><th>Desa</th><th>Tempat Pemilihan</th><th>Jumlah RT</th><th>Calon</th><th>Pemilih</th><th>Admin Desa</th><th></th></tr>${a.desa.map(d => {
       const adm = a.admins.filter(x => x.DesaID === d.ID).map(x => x.Nama);
-      return `<tr><td><b>${esc(d.Nama)}</b></td><td>${esc(d.Tempat) || '<span style="color:var(--mut)">-</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
+      return `<tr><td><b>${esc(d.Nama)}</b></td><td>${esc(d.Tempat) || '<span style="color:var(--mut)">-</span>'}</td><td>${d.JumlahRT ? d.JumlahRT + ' <small style="color:var(--mut)">(001–' + pad3(d.JumlahRT) + ')</small>' : '<span style="color:var(--red)">belum diatur</span>'}</td><td>${a.calon.filter(c => c.DesaID === d.ID).length}</td><td>${d.dpt}</td><td>${adm.length ? esc(adm.join(', ')) : '<span style="color:var(--red)">belum ada</span>'}</td>
       <td style="text-align:right;white-space:nowrap"><button class="btn sec sm" onclick="editDesa('${d.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusDesa('${d.ID}')">Hapus</button></td></tr>`;
     }).join('')}</table></div>` : '<div class="empty">Belum ada desa. Klik "+ Tambah Desa".</div>'}</div>`;
   $('#add').onclick = () => editDesa('');
 }
 function editDesa(id) {
   const v = id ? Object.assign({}, desaById(id)) : {};
+  if (v.JumlahRT === 0) v.JumlahRT = '';
   formDialog(id ? 'Ubah Desa' : 'Tambah Desa', [
     { k: 'Nama', l: 'Nama Desa', ph: 'Contoh: Sukamaju' },
-    { k: 'Tempat', l: 'Tempat Pemilihan (TPS) — tercetak di undangan', ph: 'Contoh: Balai Desa Sukamaju' }], v,
-    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, Tempat: o.Tempat }); toast('Tersimpan.'); reloadAdmin(); });
+    { k: 'Tempat', l: 'Tempat Pemilihan (TPS) — tercetak di undangan', ph: 'Contoh: Balai Desa Sukamaju' },
+    { k: 'JumlahRT', l: 'Jumlah RT di desa ini (mis. 7 → nomor RT 001 sampai 007)', t: 'number', ph: 'Contoh: 7' }], v,
+    async o => { await run('apiSimpanDesa', S.token, { ID: id || '', Nama: o.Nama, Tempat: o.Tempat, JumlahRT: o.JumlahRT }); toast('Tersimpan.'); reloadAdmin(); });
 }
 async function hapusDesa(id) {
   const d = desaById(id), n = S.admin.calon.filter(c => c.DesaID === id).length, m = S.admin.admins.filter(a => a.DesaID === id).length;
@@ -691,17 +694,24 @@ async function resetDesa() {
 const hariJam = w => String(w || '').slice(11, 16);
 const statusPem = p => p.SudahMemilih === 'Ya' ? '<span class="badge b-Selesai">Sudah memilih</span>'
   : p.WaktuHadir ? `<span class="badge b-Pakai">Hadir ${esc(hariJam(p.WaktuHadir))}</span>` : '<span class="badge b-Belum">Belum hadir</span>';
+function rtInfo() {
+  const d = desaById(S.selDesa), n = d ? d.JumlahRT : 0;
+  return n ? `<div class="msg ok" style="font-size:14px;margin:6px 0">Nomor RT yang dapat dipakai: <b>001 sampai ${pad3(n)}</b> (${n} RT).</div>`
+    : '<div class="msg warn" style="font-size:14px;margin:6px 0">Jumlah RT desa ini belum diatur. Admin Kecamatan mengaturnya di menu <b>Desa</b>; sampai itu, kolom RT dikosongkan.</div>';
+}
+const rtOpts = n => Array.from({ length: n }, (_, i) => [pad3(i + 1), 'RT ' + pad3(i + 1)]);
 async function tPemilih() {
   $('#tabBody').innerHTML = `<div class="card">${desaPick('tPemilih')}</div><div id="pm"></div>`;
   if (!S.selDesa) { $('#pm').innerHTML = '<div class="card empty">Tambahkan desa terlebih dahulu.</div>'; return; }
   try { S.pemilih = await run('apiPemilihList', S.token, S.selDesa); } catch (e) { return adminErr(e); }
   $('#pm').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">Tambah Pemilih</h3><button class="btn sm" id="addOne">+ Tambah Satu Pemilih</button></div>
-    <p style="color:var(--mut);font-size:14px;margin:8px 0 6px">Atau tempel banyak sekaligus, satu pemilih per baris: <b>NIK ; Nama ; Alamat ; No. Undangan (opsional)</b>. Bisa langsung tempel (paste) dari Excel. Nomor undangan dibuat otomatis jika kosong.</p>
-    <textarea id="imp" placeholder="6307010101010001 ; Budi Santoso ; RT 01 RW 02&#10;6307010101010002 ; Siti Aminah ; RT 03 RW 01"></textarea>
+    <p style="color:var(--mut);font-size:14px;margin:8px 0 6px">Atau tempel banyak sekaligus, satu pemilih per baris: <b>NIK ; Nama ; RT ; Alamat ; No. Undangan (opsional)</b>. RT berupa angka 1 sampai jumlah RT desa (mis. 3 atau 003). Bisa langsung tempel (paste) dari Excel. Nomor undangan dibuat otomatis jika kosong.</p>
+    ${rtInfo()}
+    <textarea id="imp" placeholder="6307010101010001 ; Budi Santoso ; 1 ; Jl. Merdeka No. 5&#10;6307010101010002 ; Siti Aminah ; 3 ; Jl. Melati No. 2"></textarea>
     <div style="margin-top:8px"><button class="btn" id="impGo">Tambahkan</button></div><div id="impRes"></div></div>
   <div class="card"><div class="row sp"><h3 style="margin:0" id="pcount"></h3></div>
     <div class="row" style="margin:10px 0"><button class="btn sm" id="pU1">🖨 Cetak Undangan (yang dicentang)</button><button class="btn sm" id="pU2">🖨 Cetak Undangan Semua</button><button class="btn sec sm" id="pH">🖨 Cetak Daftar Hadir</button></div>
-    <input id="q" placeholder="Cari nama, NIK, atau no. undangan…" style="margin:4px 0 8px"><div id="plist"></div></div>`;
+    <input id="q" placeholder="Cari nama, NIK, RT, atau no. undangan…" style="margin:4px 0 8px"><div id="plist"></div></div>`;
   drawPlist();
   $('#q').oninput = drawPlist;
   $('#addOne').onclick = tambahSatu;
@@ -723,37 +733,42 @@ async function tPemilih() {
 }
 function drawPlist() {
   const q = ($('#q') ? $('#q').value : '').toLowerCase();
-  const list = S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan).toLowerCase().includes(q));
+  const list = S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan + ' RT ' + p.RT).toLowerCase().includes(q));
   const sudah = S.pemilih.filter(p => p.SudahMemilih === 'Ya').length, hadir = S.pemilih.filter(p => p.WaktuHadir).length;
   $('#pcount').textContent = `Daftar Pemilih (${S.pemilih.length}) · hadir ${hadir} · sudah memilih ${sudah}`;
   const all = list.length && list.slice(0, 300).every(p => S.sel[p.ID]);
-  $('#plist').innerHTML = list.length ? `<div class="tw"><table><tr><th><input type="checkbox" aria-label="Pilih semua" ${all ? 'checked' : ''} onchange="selAll(this.checked)"></th><th>Nama</th><th>NIK</th><th>Undangan</th><th>Status</th><th></th></tr>${list.slice(0, 300).map(p => `<tr>
+  $('#plist').innerHTML = list.length ? `<div class="tw"><table><tr><th><input type="checkbox" aria-label="Pilih semua" ${all ? 'checked' : ''} onchange="selAll(this.checked)"></th><th>Nama</th><th>RT</th><th>NIK</th><th>Undangan</th><th>Status</th><th></th></tr>${list.slice(0, 300).map(p => `<tr>
     <td><input type="checkbox" aria-label="Pilih ${esc(p.Nama)}" ${S.sel[p.ID] ? 'checked' : ''} onchange="S.sel['${p.ID}']=this.checked"></td>
-    <td>${esc(p.Nama)}<br><small style="color:var(--mut)">${esc(p.Alamat)}</small></td><td>${esc(p.NIK)}</td><td>${esc(p.NoUndangan)}</td>
+    <td>${esc(p.Nama)}<br><small style="color:var(--mut)">${esc(p.Alamat)}</small></td><td>${esc(p.RT) || '-'}</td><td>${esc(p.NIK)}</td><td>${esc(p.NoUndangan)}</td>
     <td>${statusPem(p)}</td>
     <td style="text-align:right;white-space:nowrap">${p.SudahMemilih === 'Ya' ? '' : `<button class="btn sec sm" onclick="editPemilih('${p.ID}')">Ubah</button> <button class="btn red sm" onclick="hapusPem('${p.ID}')">Hapus</button>`}</td></tr>`).join('')}</table></div>${list.length > 300 ? '<small>Menampilkan 300 pertama — gunakan pencarian. Cetak “Semua” tetap mencakup seluruh pemilih.</small>' : ''}` : '<div class="empty">Belum ada pemilih.</div>';
 }
 function selAll(on) {
   const q = ($('#q') ? $('#q').value : '').toLowerCase();
-  S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan).toLowerCase().includes(q)).slice(0, 300).forEach(p => { if (on) S.sel[p.ID] = true; else delete S.sel[p.ID]; });
+  S.pemilih.filter(p => !q || (p.Nama + ' ' + p.NIK + ' ' + p.NoUndangan + ' RT ' + p.RT).toLowerCase().includes(q)).slice(0, 300).forEach(p => { if (on) S.sel[p.ID] = true; else delete S.sel[p.ID]; });
   drawPlist();
 }
 function tambahSatu() {
+  const n = (desaById(S.selDesa) || {}).JumlahRT || 0;
   formDialog('Tambah Satu Pemilih', [
-    { k: 'NIK', l: 'NIK (16 digit)', ph: '6307…' }, { k: 'Nama', l: 'Nama Lengkap' }, { k: 'Alamat', l: 'Alamat (RT/RW)' },
-    { k: 'No', l: 'No. Undangan (kosongkan agar otomatis)' }], {},
+    { k: 'NIK', l: 'NIK (16 digit)', ph: '6307…' }, { k: 'Nama', l: 'Nama Lengkap' },
+    ...(n ? [{ k: 'RT', l: 'RT (001 sampai ' + pad3(n) + ')', t: 'select', opts: rtOpts(n) }] : []),
+    { k: 'Alamat', l: 'Alamat' }, { k: 'No', l: 'No. Undangan (kosongkan agar otomatis)' }], n ? { RT: '001' } : {},
     async o => {
       const bersih = x => String(x || '').replace(/[;\t\r\n]/g, ' ');
-      const r = await run('apiTambahPemilih', S.token, S.selDesa, [o.NIK, o.Nama, o.Alamat, o.No].map(bersih).join(' ; '));
+      const r = await run('apiTambahPemilih', S.token, S.selDesa, [o.NIK, o.Nama, o.RT || '', o.Alamat, o.No].map(bersih).join(' ; '));
       if (!r.ditambah) throw new Error(r.dilewati[0] ? r.dilewati[0].alasan + '.' : 'Tidak ada yang ditambahkan.');
       toast('Pemilih ditambahkan.'); tPemilih();
     });
 }
 function editPemilih(id) {
   const p = S.pemilih.find(x => x.ID === id);
+  const n = (desaById(S.selDesa) || {}).JumlahRT || 0;
   formDialog('Ubah Data Pemilih', [
-    { k: 'NIK', l: 'NIK (16 digit)' }, { k: 'Nama', l: 'Nama Lengkap' }, { k: 'Alamat', l: 'Alamat' }, { k: 'NoUndangan', l: 'No. Undangan' }], p,
-    async o => { await run('apiUbahPemilih', S.token, id, { NIK: o.NIK, Nama: o.Nama, Alamat: o.Alamat, NoUndangan: o.NoUndangan }); toast('Tersimpan.'); tPemilih(); });
+    { k: 'NIK', l: 'NIK (16 digit)' }, { k: 'Nama', l: 'Nama Lengkap' },
+    ...(n ? [{ k: 'RT', l: 'RT (001 sampai ' + pad3(n) + ')', t: 'select', opts: rtOpts(n) }] : []),
+    { k: 'Alamat', l: 'Alamat' }, { k: 'NoUndangan', l: 'No. Undangan' }], p,
+    async o => { await run('apiUbahPemilih', S.token, id, { NIK: o.NIK, Nama: o.Nama, RT: o.RT || '', Alamat: o.Alamat, NoUndangan: o.NoUndangan }); toast('Tersimpan.'); tPemilih(); });
 }
 async function hapusPem(id) {
   const p = S.pemilih.find(x => x.ID === id);
@@ -770,7 +785,7 @@ function undangan(p, d, k, img) {
     <div class="mid"><div class="l">
       <div class="row sp" style="gap:4px"><span>Kepada Yth.</span><span class="no">No. ${esc(p.NoUndangan)}</span></div>
       <div class="nm">${esc(p.Nama)}</div>
-      <div>NIK: ${esc(maskNik(p.NIK))}</div>
+      <div>NIK: ${esc(maskNik(p.NIK))}${p.RT ? ' · <b>RT ' + esc(p.RT) + '</b>' : ''}</div>
       ${p.Alamat ? `<div>${esc(p.Alamat)}</div>` : ''}</div>
       <div class="qr"><img src="${img}" alt="QR Code memilih">SCAN UNTUK<br>MEMILIH</div></div>
     <hr>
@@ -809,8 +824,8 @@ async function cetakHadir() {
   let list;
   try { list = await run('apiPemilihList', S.token, S.selDesa); } catch (e) { return adminErr(e); }
   if (!list.length) return toast('Belum ada pemilih.');
-  $('#printArea').innerHTML = `<h2>Daftar Hadir Pemilih — Desa ${esc(d.Nama)}</h2><table style="width:100%;border-collapse:collapse"><tr><th>No</th><th>Nama</th><th>NIK</th><th>Alamat</th><th>No. Undangan</th><th>Kehadiran (scan QR)</th></tr>` +
-    list.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.Nama)}</td><td>${esc(maskNik(p.NIK))}</td><td>${esc(p.Alamat)}</td><td>${esc(p.NoUndangan)}</td><td>${p.WaktuHadir ? '✔ ' + esc(p.WaktuHadir.slice(11, 16)) : '—'}</td></tr>`).join('') + '</table>';
+  $('#printArea').innerHTML = `<h2>Daftar Hadir Pemilih — Desa ${esc(d.Nama)}</h2><table style="width:100%;border-collapse:collapse"><tr><th>No</th><th>Nama</th><th>RT</th><th>NIK</th><th>Alamat</th><th>No. Undangan</th><th>Kehadiran (scan QR)</th></tr>` +
+    list.map((p, i) => `<tr><td>${i + 1}</td><td>${esc(p.Nama)}</td><td>${esc(p.RT)}</td><td>${esc(maskNik(p.NIK))}</td><td>${esc(p.Alamat)}</td><td>${esc(p.NoUndangan)}</td><td>${p.WaktuHadir ? '✔ ' + esc(p.WaktuHadir.slice(11, 16)) : '—'}</td></tr>`).join('') + '</table>';
   window.print();
 }
 
