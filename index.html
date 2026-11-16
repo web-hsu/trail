@@ -697,10 +697,10 @@ function drawLogin() {
   $('#lg').onclick = masuk; $('#pin').onkeydown = e => { if (e.key === 'Enter') masuk(); };
 }
 function tabsFor() {
-  if (S.fixDesa) return [['dash', 'Dashboard'], ['pemilih', 'Data Pemilih'], ['hitung', 'Hitung Manual'], ['set', 'Akun']];
+  if (S.fixDesa) return [['dash', 'Dashboard'], ['pemilih', 'Data Pemilih'], ['hitung', 'Format Penghitungan Suara'], ['set', 'Akun']];
   return S.sesi && S.sesi.peran === 'super'
     ? [['desa', 'Desa'], ['tps', 'Atur TPS'], ['calon', 'Calon'], ['admin', 'Admin Desa'], ['pemilih', 'Data Pemilih'], ['rekap', 'Rekap Suara'], ['set', 'Pengaturan']]
-    : [['pemilih', 'Data Pemilih'], ['hitung', 'Hitung Manual'], ['set', 'Akun Saya']];
+    : [['pemilih', 'Data Pemilih'], ['hitung', 'Format Penghitungan Suara'], ['set', 'Akun Saya']];
 }
 async function renderAdmin() {
   if (!S.token) return drawLogin();
