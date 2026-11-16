@@ -555,6 +555,51 @@ function vVisi(id) {
     ${c.Visi ? `<p><b>Visi:</b> ${esc(c.Visi)}</p>` : ''}${c.Misi ? `<p style="white-space:pre-line"><b>Misi:</b> ${esc(c.Misi)}</p>` : ''}
     <div class="row" style="margin-top:12px"><button class="btn sec" onclick="closeModal()">Tutup</button><button class="btn" style="flex:1" onclick="closeModal();vKonfirmasi('${c.ID}')">PILIH No. ${esc(c.NoUrut)}</button></div>`);
 }
+/* ---- Cetak surat suara (printer thermal) ----
+ * Setelah suara tercatat di bilik (/pilkades<desa>), lembar berisi calon pilihan langsung dicetak lalu dimasukkan ke kotak suara.
+ * Lembar TIDAK memuat NIK/nama pemilih dan tidak memuat jam, agar suara tetap rahasia.
+ * Lebar kertas: 58 mm (bawaan). Ganti dengan KERTAS_MM: 80 di config.js bila memakai kertas 80 mm.
+ * Ukuran kertas pada driver printer harus sama (mis. 58 mm roll). Agar langsung keluar tanpa kotak dialog: jadikan printer thermal
+ * sebagai printer bawaan, lalu jalankan Chrome dengan --kiosk-printing. */
+function slipSuara(c) {
+  const mm = parseInt((window.APP_CONFIG || {}).KERTAS_MM, 10) || 58;
+  const desa = (S.pilInfo && S.pilInfo.Nama) || '', kec = (S.pilInfo && S.pilInfo.kec && S.pilInfo.kec.kecamatan) || '';
+  const tgl = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  return `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"><title>Surat Suara</title><style>
+    @page{margin:0}
+    *{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}
+    body{width:${mm}mm;padding:3mm ${mm >= 80 ? 6 : 4}mm 12mm;font-family:Arial,Helvetica,sans-serif;color:#000;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .t{font-weight:800;font-size:${mm >= 80 ? 15 : 13}px;line-height:1.25;text-transform:uppercase}
+    .s{font-size:${mm >= 80 ? 13 : 11}px;line-height:1.3}
+    hr{border:0;border-top:1.5px dashed #000;margin:2.5mm 0}
+    .l{font-size:${mm >= 80 ? 13 : 11}px;font-weight:700;letter-spacing:1px}
+    .no{font-weight:900;font-size:${mm >= 80 ? 64 : 54}px;line-height:1.05;margin:1mm 0}
+    .nm{font-weight:800;font-size:${mm >= 80 ? 20 : 16}px;line-height:1.2;word-break:break-word}
+    .f{font-size:${mm >= 80 ? 12 : 10}px;line-height:1.3;margin-top:2mm}
+  </style></head><body>
+    <div class="t">Surat Suara<br>Pemilihan Kepala Desa</div>
+    <div class="s">Desa ${esc(desa)}${kec ? ' · Kec. ' + esc(kec) : ''}</div>
+    <hr><div class="l">PILIHAN</div>
+    <div class="no">${esc(c.NoUrut)}</div>
+    <div class="nm">${esc(c.Nama)}</div>
+    <hr><div class="s">${esc(tgl)}</div>
+    <div class="f">Masukkan lembar ini<br>ke dalam kotak suara.</div>
+  </body></html>`;
+}
+function cetakSuara(c) {
+  try {
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    f.srcdoc = slipSuara(c);
+    f.onload = () => {
+      try { f.contentWindow.focus(); f.contentWindow.print(); }
+      catch (e) { toast('Gagal mencetak surat suara: ' + e.message, 6000); }
+      setTimeout(() => f.remove(), 120000);
+    };
+    document.body.appendChild(f);
+  } catch (e) { toast('Gagal mencetak surat suara: ' + e.message, 6000); }
+}
+function cetakUlang() { if (S.lastSlip) cetakSuara(S.lastSlip); }
 function vKonfirmasi(id) {
   const c = (S.vCalon || []).find(x => x.ID === id); if (!c) return;
   modal(`<div class="center"><div class="bigic">🗳️</div><h2>Apakah Anda yakin?</h2>
@@ -568,7 +613,11 @@ function vKonfirmasi(id) {
       clearTimeout(S.pilT);
       const r = await run('apiPilihQR', S.kode, id, S.pilDesa || null);
       closeModal();
-      if (r.ok && S.pilDesa) { S.vCalon = null; S.kode = ''; S.pilT = setTimeout(pilMasuk, 8000); return vStatus('✅', 'Terima kasih', 'Suara Anda sudah tercatat dan dijaga kerahasiaannya.<br><br>QR Code Anda tidak dapat dipakai memilih lagi. Layar akan kembali ke halaman scan dalam beberapa detik.'); }
+      if (r.ok && S.pilDesa) {
+        S.vCalon = null; S.kode = ''; S.lastSlip = c; S.pilT = setTimeout(pilMasuk, 15000);
+        cetakSuara(c); // surat suara langsung dicetak (printer thermal)
+        return vStatus('✅', 'Terima kasih', 'Suara Anda sudah tercatat dan dijaga kerahasiaannya.<br><br><b>Ambil surat suara yang keluar dari printer, lalu masukkan ke kotak suara.</b><br>QR Code Anda tidak dapat dipakai memilih lagi.<br><br><button class="btn sec" onclick="cetakUlang()">🖨️ Cetak ulang (kertas macet / tidak keluar)</button>');
+      }
       if (r.ok) { S.vCalon = null; return vStatus('✅', 'Terima kasih', 'Suara Anda sudah tercatat dan dijaga kerahasiaannya.<br><br>Halaman pemilihan ini telah <b>ditutup</b>. QR Code Anda tidak dapat dipakai memilih lagi.'); }
       if (r.state === 'error') return toast(r.pesan, 5000);
       S.vCalon = null; vScan({ state: r.state, desa: r.desa, kec: S.pub && S.pub.kec });
@@ -1252,7 +1301,7 @@ async function pilLayar() {
 }
 /** Halaman awal bilik suara: scan QR undangan dengan kamera depan atau alat scan genggam. */
 function pilMasuk() {
-  clearTimeout(S.pilT); pilStop(); closeModal(); S.kode = ''; S.vCalon = null;
+  clearTimeout(S.pilT); pilStop(); closeModal(); S.kode = ''; S.vCalon = null; S.lastSlip = null;
   const h = S.pilInfo, k = h.kec || {};
   const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
   const j = k.tanggal && k.mulai && k.selesai ? tglID(k.tanggal) + ' · pukul ' + jamStr(k) : '';
