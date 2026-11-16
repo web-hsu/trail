@@ -120,7 +120,8 @@ body.pemilih main{padding:10px 12px}
 .und .uc2{flex:1;min-width:0;display:flex;flex-direction:column;gap:2mm}
 .und .cb{border:1.5px solid #000;padding:2mm 2.5mm;display:flex;gap:3mm;justify-content:center;align-items:flex-start;height:43mm;box-sizing:border-box;overflow:hidden}
 .und .cd{flex:1;min-width:0;max-width:28mm;text-align:center}
-.und .cd img,.und .ph0{display:flex;width:min(100%,23mm);aspect-ratio:3/4;height:auto;margin:0 auto;object-fit:cover;object-position:center top;border-radius:1px;background:#e2e8f0;align-items:center;justify-content:center}
+.und .cf{position:relative;width:min(100%,23mm);margin:0 auto}.und .cno{position:absolute;top:.8mm;left:.8mm;width:5.5mm;height:5.5mm;border-radius:50%;background:#000;color:#fff;border:.4mm solid #fff;font-size:8pt;font-weight:800;line-height:4.7mm;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.und .cd img,.und .ph0{display:flex;width:100%;aspect-ratio:3/4;height:auto;margin:0;object-fit:cover;object-position:center top;border-radius:1px;background:#e2e8f0;align-items:center;justify-content:center}
 .und .cn{font-size:8pt;line-height:1.15;font-weight:700;margin-top:1mm;word-break:break-word}
 .und .ttd2{margin-top:auto;text-align:center;font-weight:800;font-size:10pt;line-height:1.3}
 .und .ttdi{height:10mm;display:flex;align-items:center;justify-content:center}.und .ttdi img{max-height:10mm;max-width:45mm}
@@ -886,7 +887,7 @@ function undangan(p, d, k, img, calon, link) {
   const kab = d.Kabupaten || k.kabupaten, kec = d.Kecamatan || k.kecamatan;
   const tgl = k.tanggal ? esc(tglID(k.tanggal)) : kosong, jam = k.mulai && k.selesai ? esc(jamStr(k)) : kosong;
   const tempat = p.TPS ? 'TPS ' + esc(p.TPS) + (p.TPSLokasi ? ' (' + esc(p.TPSLokasi) + ')' : '') : kosong;
-  const cds = (calon || []).map(c => { const u = foto(c.Foto); return `<div class="cd">${u ? `<img src="${esc(u)}" alt="">` : '<div class="ph0">👤</div>'}<div class="cn">${esc(c.NoUrut)}. ${esc(c.Nama)}</div></div>`; }).join('') || '<div class="cn">Daftar calon belum tersedia</div>';
+  const cds = (calon || []).map(c => { const u = foto(c.Foto); return `<div class="cd"><div class="cf">${u ? `<img src="${esc(u)}" alt="">` : '<div class="ph0">👤</div>'}<div class="cno">${esc(c.NoUrut)}</div></div><div class="cn">${esc(c.Nama)}</div></div>`; }).join('') || '<div class="cn">Daftar calon belum tersedia</div>';
   return `<div class="und">
     <div class="uh"><img class="lg" src="${esc(LOGO)}" alt="" onerror="this.style.visibility='hidden'">
       <div class="ut"><div class="t1">PEMILIHAN KEPALA DESA</div>${kab ? `<div>Kab. ${esc(kab)}</div>` : ''}${kec ? `<div>Kec. ${esc(kec)}</div>` : ''}<div>Desa ${esc(d.Nama)}</div></div><div></div></div>
