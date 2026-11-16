@@ -199,6 +199,30 @@ body.fs{background:#04302b}body.fs header{display:none}body.fs main{max-width:no
 }
 
 body.dadm nav{display:none}
+/* dashboard panel admin: kartu terang ala panel kerja (bukan tampilan TV) */
+.adh{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center}
+.adh .adc{text-align:right;margin-left:auto}
+.adh .adl{font-size:13px;color:var(--mut);margin-bottom:6px;font-weight:600}
+.adt{display:flex;gap:8px;justify-content:flex-end}
+.adt span{background:var(--pri-soft);color:var(--pri);border-radius:10px;padding:6px 10px;min-width:64px;text-align:center;font-size:12px;font-weight:600}
+.adt b{display:block;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+@media(max-width:700px){.adh .adc{text-align:left;margin-left:0}.adt{justify-content:flex-start}}
+/* sentuhan dinamis pada panel admin */
+@keyframes fin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+#tabBody>*{animation:fin .28s ease both}
+.ptitle{font-size:24px;display:flex;align-items:center;gap:10px}
+.ptitle::before{content:"";width:5px;height:24px;border-radius:3px;background:linear-gradient(var(--pri2),var(--pri))}
+.card{transition:box-shadow .2s}.content .card:hover{box-shadow:0 4px 14px rgba(15,23,42,.1)}
+.side{border:1px solid var(--line)}
+.side .tabs button{transition:background .15s,color .15s,transform .15s}
+.side .tabs button:hover:not(.on){transform:translateX(3px)}
+.side .tabs button.on{box-shadow:0 4px 10px rgba(15,118,110,.3)}
+.btn{transition:filter .15s,transform .1s,box-shadow .15s}.btn:hover{box-shadow:0 4px 10px rgba(15,118,110,.25)}.btn:active{transform:scale(.97)}
+.btn.sec:hover{background:#cbd5e1;box-shadow:none}.btn.red:hover{box-shadow:0 4px 10px rgba(220,38,38,.25)}
+.content table th{background:#f8fafc;position:sticky;top:0}.content table tr:hover td{background:#f0fdfa}
+.stat{transition:transform .15s,box-shadow .15s}.stat:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(15,23,42,.12)}
+.bar-line i,.hrow .pb i{transition:width .6s ease}
+.content input:focus,.content select:focus,.content textarea:focus{box-shadow:0 0 0 3px rgba(20,184,166,.2)}
 .dv{background:linear-gradient(160deg,#04302b,#0b5c53 60%,#0f766e);color:#fff;border-radius:20px;padding:clamp(14px,2vw,32px);display:flex;flex-direction:column;gap:clamp(12px,1.6vw,24px)}
 body.fs .dv{min-height:100vh;border-radius:0}
 .dvh{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
@@ -1287,7 +1311,44 @@ function visiDv(id) {
     ${c.Visi ? `<p><b>Visi:</b> ${esc(c.Visi)}</p>` : ''}${c.Misi ? `<p style="white-space:pre-line"><b>Misi:</b> ${esc(c.Misi)}</p>` : ''}
     <div class="row" style="margin-top:12px"><button class="btn" onclick="closeModal()">Tutup</button></div>`);
 }
+/** Dashboard panel Admin Desa: kartu terang dan ringkas untuk bekerja (halaman publik/TV tetap terpisah di /namadesa). */
+function dvAdmin(o) {
+  const k = o.kec || {}, c = cdInfo(o);
+  const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
+  const jadwal = k.tanggal && k.mulai && k.selesai ? tglID(k.tanggal) + ' · pukul ' + jamStr(k) : 'Jadwal pemilihan belum ditetapkan';
+  const pct = x => o.dpt ? Math.round(x * 100 / o.dpt) : 0;
+  const timer = c.ms === undefined ? '' : '<div class="adt"><span><b id="cdD">0</b>hari</span><span><b id="cdH">00</b>jam</span><span><b id="cdM">00</b>menit</span><span><b id="cdS">00</b>detik</span></div>';
+  const rows = o.tps.map(t => {
+    const p = t.dpt ? Math.round(t.sudah * 100 / t.dpt) : 0;
+    return `<tr><td><b>TPS ${esc(t.NoTPS)}</b>${t.Lokasi ? `<br><small style="color:var(--mut)">${esc(t.Lokasi)}</small>` : ''}</td><td>RT ${t.RT.map(esc).join(', ')}</td><td>${t.dpt}</td><td>${t.hadir}</td><td>${t.sudah}</td>
+      <td style="min-width:120px"><div class="bar-line" style="margin:0"><i style="width:${p}%"></i></div><small style="color:var(--mut)">${p}%</small></td></tr>`;
+  }).join('');
+  return `<div class="card adh"><div><small style="color:var(--mut)">Pemilihan Kepala Desa Serentak</small>
+      <h3 style="font-size:24px;margin:2px 0">Desa ${esc(o.desa.Nama)} <span class="badge b-${o.status}" style="font-size:12px;vertical-align:middle">${stLabel(o.status)}</span></h3>
+      <small style="color:var(--mut)">${esc(sub)}</small><div style="font-size:14px;margin-top:6px">📅 ${esc(jadwal)}</div></div>
+    <div class="adc"><div class="adl">${esc(c.label)}</div>${timer}</div></div>
+  <div class="stats">
+    <div class="stat"><b>${o.dpt}</b><span>Pemilih terdaftar</span></div>
+    <div class="stat"><b style="color:#b45309">${o.hadir}</b><span>Hadir di TPS (${pct(o.hadir)}%)</span></div>
+    <div class="stat"><b style="color:#1e40af">${o.sudah}</b><span>Sudah memilih (${pct(o.sudah)}%)</span></div>
+    <div class="stat"><b style="color:var(--mut)">${Math.max(0, o.dpt - o.sudah)}</b><span>Belum memilih</span></div></div>
+  <div class="card"><h3>Rangkuman TPS (${o.tps.length})</h3>
+    ${o.tps.length ? `<div class="tw"><table><tr><th>TPS</th><th>RT</th><th>Pemilih</th><th>Hadir</th><th>Sudah memilih</th><th>Progres</th></tr>${rows}</table></div>` : '<div class="empty">TPS belum diatur.</div>'}
+    ${o.tanpaTps ? `<div class="msg warn" style="margin-top:10px">${o.tanpaTps} pemilih belum masuk TPS manapun (RT-nya belum diatur ke TPS oleh Admin Kecamatan).</div>` : ''}</div>
+  ${o.hasil ? hasilAdmin(o.hasil) : ''}`;
+}
+function hasilAdmin(h) {
+  const max = Math.max(0, ...h.calon.map(c => c.suara)), win = h.calon.filter(c => c.suara === max && max > 0);
+  return `<div class="card"><h3>🏆 Hasil Perolehan Suara</h3>
+    ${win.length === 1 ? `<div class="win-banner">Kepala Desa Terpilih: No. ${esc(win[0].NoUrut)} — ${esc(win[0].Nama)}</div>` : win.length > 1 ? '<div class="win-banner">Perolehan suara teratas sama — menunggu keputusan panitia</div>' : ''}
+    ${h.calon.map(c => {
+      const pct = h.totalSuara ? c.suara * 100 / h.totalSuara : 0, u = foto(c.Foto);
+      return `<div class="hrow ${win.length === 1 && win[0].ID === c.ID ? 'win' : ''}">${u ? `<img src="${esc(u)}" alt="">` : '<div class="av">👤</div>'}
+        <div class="t"><div class="nm"><span>No. ${esc(c.NoUrut)} · ${esc(c.Nama)}</span><span>${c.suara} suara (${pct.toFixed(1)}%)</span></div><div class="pb"><i style="width:${pct}%"></i></div></div></div>`;
+    }).join('')}</div>`;
+}
 function dvHtml(o, adm) {
+  if (adm) return dvAdmin(o);
   const k = o.kec || {}, c = cdInfo(o);
   const sub = [k.kecamatan ? 'Kecamatan ' + k.kecamatan : '', k.kabupaten ? 'Kabupaten ' + k.kabupaten : ''].filter(Boolean).join(' · ');
   const jadwal = k.tanggal && k.mulai && k.selesai ? tglID(k.tanggal) + ' · pukul ' + jamStr(k) : 'Jadwal pemilihan belum ditetapkan';
@@ -1318,7 +1379,7 @@ function dvHtml(o, adm) {
         <div class="dvp tpsp"><h3 class="dvt">Rangkuman TPS (${o.tps.length})</h3>${tps}</div></div>
         <div class="pubR">${kanan}</div></div></div>`;
   }
-  return `<div class="dv">
+  return `<div class="dv dva">
     <div class="dvh"><div><small>Pemilihan Kepala Desa Serentak</small><h1>Desa ${esc(o.desa.Nama)}</h1><small>${esc(sub)}</small></div>
       <div class="row"><span class="dvb">${stLabel(o.status)}</span>${adm ? '' : '<button class="btn sec sm" onclick="document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()">⛶ Layar penuh</button>'}</div></div>
     <div class="dvp">${cd}</div>
