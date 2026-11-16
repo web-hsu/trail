@@ -1122,7 +1122,7 @@ function dvHtml(o, adm) {
   const pct = x => o.dpt ? Math.round(x * 100 / o.dpt) : 0;
   const cd = `<div class="cdl">${esc(c.label)}</div>` + (c.ms === undefined ? '' :
     '<div class="cdb"><div><b id="cdD">0</b><small>Hari</small></div><div><b id="cdH">00</b><small>Jam</small></div><div><b id="cdM">00</b><small>Menit</small></div><div><b id="cdS">00</b><small>Detik</small></div></div>') +
-    `<div class="cds">${esc(jadwal)}</div>`;
+    (k.tanggal && k.mulai && k.selesai ? `<div class="cds">${esc(jadwal)}</div>` : '');
   const tps = o.tps.length ? `<div class="tpsg">${o.tps.map(t => `<div class="tpsc">
       <div class="row sp"><b style="font-size:1.4em">TPS ${esc(t.NoTPS)}</b><span>${t.dpt} pemilih</span></div>
       ${t.Lokasi ? `<div style="opacity:.85">${esc(t.Lokasi)}</div>` : ''}
