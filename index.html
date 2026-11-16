@@ -939,19 +939,20 @@ async function tPemilih() {
   $('#tabBody').innerHTML = `<div class="card">${desaPick('tPemilih')}</div><div id="pm"></div>`;
   if (!S.selDesa) { $('#pm').innerHTML = '<div class="card empty">Tambahkan desa terlebih dahulu.</div>'; return; }
   try { S.pemilih = await run('apiPemilihList', S.token, S.selDesa); } catch (e) { return adminErr(e); }
-  $('#pm').innerHTML = `<div class="card"><div class="row sp"><h3 style="margin:0">Tambah Pemilih</h3><button class="btn sm" id="addOne">+ Tambah Satu Pemilih</button></div>
+  const tambah = !!S.fixDesa || S.sesi.peran === 'desa'; // pemilih ditambahkan oleh Admin Desa; Admin Kecamatan hanya melihat
+  $('#pm').innerHTML = `${tambah ? `<div class="card"><div class="row sp"><h3 style="margin:0">Tambah Pemilih</h3><button class="btn sm" id="addOne">+ Tambah Satu Pemilih</button></div>
     <p style="color:var(--mut);font-size:14px;margin:8px 0 6px">Atau tempel banyak sekaligus, satu pemilih per baris: <b>NIK ; Nama ; RT ; Alamat ; No. Undangan (opsional)</b>. RT berupa angka 1 sampai jumlah RT desa (mis. 3 atau 003). Bisa langsung tempel (paste) dari Excel. Nomor undangan dibuat otomatis jika kosong.</p>
     ${rtInfo()}
     <textarea id="imp" placeholder="6307010101010001 ; Budi Santoso ; 1 ; Jl. Merdeka No. 5&#10;6307010101010002 ; Siti Aminah ; 3 ; Jl. Melati No. 2"></textarea>
-    <div style="margin-top:8px"><button class="btn" id="impGo">Tambahkan</button></div><div id="impRes"></div></div>
+    <div style="margin-top:8px"><button class="btn" id="impGo">Tambahkan</button></div><div id="impRes"></div></div>` : ''}
   <div class="card"><div class="row sp"><h3 style="margin:0" id="pcount"></h3></div>
     <div class="row" style="margin:10px 0"><button class="btn sm" id="pU1">🖨 Cetak Undangan (yang dicentang)</button><button class="btn sm" id="pU2">🖨 Cetak Undangan Semua</button><button class="btn sec sm" id="pH">🖨 Cetak Daftar Hadir</button></div>
     <input id="q" placeholder="Cari nama, NIK, RT, TPS, atau no. undangan…" style="margin:4px 0 8px"><div id="plist"></div></div>`;
   drawPlist();
   $('#q').oninput = drawPlist;
-  $('#addOne').onclick = tambahSatu;
+  if (tambah) $('#addOne').onclick = tambahSatu;
   $('#pU1').onclick = () => cetakUndangan('pilih'); $('#pU2').onclick = () => cetakUndangan('semua'); $('#pH').onclick = cetakHadir;
-  $('#impGo').onclick = async () => {
+  if (tambah) $('#impGo').onclick = async () => {
     try {
       const r = await run('apiTambahPemilih', S.token, S.selDesa, $('#imp').value);
       S.pemilih = await run('apiPemilihList', S.token, S.selDesa);
@@ -1320,20 +1321,19 @@ function dvAdmin(o) {
   const timer = c.ms === undefined ? '' : '<div class="adt"><span><b id="cdD">0</b>hari</span><span><b id="cdH">00</b>jam</span><span><b id="cdM">00</b>menit</span><span><b id="cdS">00</b>detik</span></div>';
   const rows = o.tps.map(t => {
     const p = t.dpt ? Math.round(t.sudah * 100 / t.dpt) : 0;
-    return `<tr><td><b>TPS ${esc(t.NoTPS)}</b>${t.Lokasi ? `<br><small style="color:var(--mut)">${esc(t.Lokasi)}</small>` : ''}</td><td>RT ${t.RT.map(esc).join(', ')}</td><td>${t.dpt}</td><td>${t.hadir}</td><td>${t.sudah}</td>
+    return `<tr><td><b>TPS ${esc(t.NoTPS)}</b>${t.Lokasi ? `<br><small style="color:var(--mut)">${esc(t.Lokasi)}</small>` : ''}</td><td>RT ${t.RT.map(esc).join(', ')}</td><td>${t.dpt}</td><td>${t.sudah}</td>
       <td style="min-width:120px"><div class="bar-line" style="margin:0"><i style="width:${p}%"></i></div><small style="color:var(--mut)">${p}%</small></td></tr>`;
   }).join('');
   return `<div class="card adh"><div><small style="color:var(--mut)">Pemilihan Kepala Desa Serentak</small>
       <h3 style="font-size:24px;margin:2px 0">Desa ${esc(o.desa.Nama)} <span class="badge b-${o.status}" style="font-size:12px;vertical-align:middle">${stLabel(o.status)}</span></h3>
       <small style="color:var(--mut)">${esc(sub)}</small><div style="font-size:14px;margin-top:6px">📅 ${esc(jadwal)}</div></div>
-    <div class="adc"><div class="adl">${esc(c.label)}</div>${timer}</div></div>
+    ${c.ms === undefined && !k.tanggal ? '' : `<div class="adc"><div class="adl">${esc(c.label)}</div>${timer}</div>`}</div>
   <div class="stats">
     <div class="stat"><b>${o.dpt}</b><span>Pemilih terdaftar</span></div>
-    <div class="stat"><b style="color:#b45309">${o.hadir}</b><span>Hadir di TPS (${pct(o.hadir)}%)</span></div>
     <div class="stat"><b style="color:#1e40af">${o.sudah}</b><span>Sudah memilih (${pct(o.sudah)}%)</span></div>
     <div class="stat"><b style="color:var(--mut)">${Math.max(0, o.dpt - o.sudah)}</b><span>Belum memilih</span></div></div>
   <div class="card"><h3>Rangkuman TPS (${o.tps.length})</h3>
-    ${o.tps.length ? `<div class="tw"><table><tr><th>TPS</th><th>RT</th><th>Pemilih</th><th>Hadir</th><th>Sudah memilih</th><th>Progres</th></tr>${rows}</table></div>` : '<div class="empty">TPS belum diatur.</div>'}
+    ${o.tps.length ? `<div class="tw"><table><tr><th>TPS</th><th>RT</th><th>Pemilih</th><th>Sudah memilih</th><th>Progres</th></tr>${rows}</table></div>` : '<div class="empty">TPS belum diatur.</div>'}
     ${o.tanpaTps ? `<div class="msg warn" style="margin-top:10px">${o.tanpaTps} pemilih belum masuk TPS manapun (RT-nya belum diatur ke TPS oleh Admin Kecamatan).</div>` : ''}</div>
   ${o.hasil ? hasilAdmin(o.hasil) : ''}`;
 }
