@@ -546,6 +546,7 @@ function go(v) {
 async function loadPub(silent) {
   try {
     S.pub = await (silent ? quiet('apiPublik') : run('apiPublik'));
+    sset('pubh', JSON.stringify(S.pub));
     const k = S.pub.kec || {};
     $('#hdrSub').textContent = S.fixDesa ? 'Admin Desa ' + S.fixNama : (k.kecamatan ? 'Kecamatan ' + k.kecamatan : 'Pemilihan Kepala Desa');
   } catch (e) { if (!silent) toast('Gagal memuat data: ' + e.message, 5000); }
@@ -733,7 +734,7 @@ function formDialog(title, fields, vals, save, note) {
 /* ====================== ADMIN: LOGIN & KERANGKA ====================== */
 function adminErr(e) {
   toast(e.message, 5000);
-  if (/Sesi berakhir/.test(e.message)) { S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); drawLogin(); }
+  if (/Sesi berakhir/.test(e.message)) { S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); sdel('admc'); drawLogin(); }
 }
 function drawLogin() {
   const desa = !!S.fixDesa; // halaman /adminnamadesa: hanya Admin Desa; halaman utama: hanya Admin Kecamatan
@@ -763,18 +764,47 @@ function tabsFor() {
 }
 async function renderAdmin() {
   if (!S.token) return drawLogin();
-  try { S.admin = await run('apiInit', S.token); S.sesi = S.admin.sesi; }
-  catch (e) { return adminErr(e); }
+  // Halaman Admin Desa dibuka di Dashboard: data panel + dashboard dimuat dalam satu panggilan.
+  const awal = !!S.fixDesa && (S.tab === 'dash' || !tabsFor().find(t => t[0] === S.tab));
+  // Data terakhir disimpan di peramban: tampilkan langsung (terasa instan), data terbaru menyusul di latar belakang.
+  const c = jparse(sget('admc')), did = S.fixDesa || '';
+  const tampil = !!(c && c.tk === S.token && c.did === did && c.init && c.init.sesi && !S.admCache);
+  if (tampil) {
+    S.admCache = true; S.admin = c.init; S.sesi = c.init.sesi; S.dvPre = awal ? (c.dash || null) : null;
+    if (!adminCek()) return;
+    if (!tabsFor().find(t => t[0] === S.tab)) S.tab = tabsFor()[0][0];
+    drawAdmin();
+  }
+  let baru = null;
+  try {
+    const call = tampil ? quiet : run;
+    if (awal) { const p = await call('apiMuatAdminDesa', S.token, S.fixDesa); S.admin = p.init; baru = p.dash; }
+    else S.admin = await call('apiInit', S.token);
+    S.sesi = S.admin.sesi;
+  } catch (e) { return adminErr(e); }
+  try { sset('admc', JSON.stringify({ tk: S.token, did: did, init: S.admin, dash: baru })); } catch (e) {}
+  if (!adminCek()) return;
+  if (!tabsFor().find(t => t[0] === S.tab)) S.tab = tabsFor()[0][0];
+  if (tampil) {
+    if (JSON.stringify(S.admin) !== JSON.stringify(c.init)) { S.dvPre = baru; return drawAdmin(); }
+    if (baru && S.tab === 'dash' && $('#dvBox')) { S.dv = baru; S.off = baru.nowMs - Date.now(); drawDv(); }
+    return;
+  }
+  S.dvPre = baru;
+  drawAdmin();
+}
+/** false bila akun tidak boleh membuka halaman ini (sudah dialihkan / pesan ditampilkan). */
+function adminCek() {
   if (S.sesi.peran === 'desa' && !S.fixDesa) { // Admin Desa selalu bekerja di halaman desanya
     const d0 = S.admin.desa[0];
-    if (d0) { location.replace(location.origin + BASE + 'admin' + d0.Slug); return; }
+    if (d0) location.replace(location.origin + BASE + 'admin' + d0.Slug);
+    return false;
   }
   if (S.fixDesa && S.sesi.peran === 'desa' && S.sesi.desaId !== S.fixDesa) {
     $('#v-admin').innerHTML = '<div class="card" style="max-width:420px;margin:30px auto" ><h2>Tidak berwenang</h2><p>Akun Anda bukan admin untuk desa ini. Keluar lalu masuk dengan akun yang sesuai.</p><button class="btn" onclick="logout()">Keluar</button></div>';
-    return;
+    return false;
   }
-  if (!tabsFor().find(t => t[0] === S.tab)) S.tab = tabsFor()[0][0];
-  drawAdmin();
+  return true;
 }
 function drawAdmin() {
   clearInterval(S.pt);
@@ -793,7 +823,7 @@ function drawAdmin() {
 }
 async function logout() {
   try { await run('apiLogout', S.token); } catch (e) {}
-  S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); sdel('desa'); sdel('view'); drawLogin();
+  S.token = ''; S.sesi = null; sdel('tk'); sdel('ses'); sdel('tab'); sdel('desa'); sdel('view'); sdel('admc'); drawLogin();
 }
 async function reloadAdmin() {
   S.admin = await run('apiInit', S.token); S.sesi = S.admin.sesi;
@@ -1317,6 +1347,7 @@ async function refreshDv(silent) {
   try {
     const o = adm ? await call('apiDashboardDesa', S.token, S.dvId) : await call('apiDesaPublik', S.dvId);
     S.dv = o; S.off = o.nowMs - Date.now(); drawDv();
+    if (!adm) sset('pubc_' + S.dvId, JSON.stringify(o));
   } catch (e) {
     if (adm) { if (!silent || /Sesi berakhir/.test(e.message)) adminErr(e); }
     else if (!silent) halamanGagal(e.message);
@@ -1463,7 +1494,8 @@ async function akhiriPilih() {
 function tDash() {
   S.dvMode = 'admin'; S.dvId = S.selDesa; S.dv = null;
   $('#tabBody').innerHTML = '<div id="dvBox"></div>';
-  ensureCd(); refreshDv(false);
+  ensureCd();
+  if (S.dvPre && S.dvPre.desa && S.dvPre.desa.ID === S.selDesa) { S.dv = S.dvPre; S.dvPre = null; S.off = S.dv.nowMs - Date.now(); drawDv(); } else refreshDv(false);
   S.pt = setInterval(() => { if (document.hidden || S.view !== 'admin' || S.tab !== 'dash' || !$('#dvBox')) return; refreshDv(true); }, 10000);
 }
 function halamanGagal(msg) {
@@ -1476,7 +1508,15 @@ async function mulaiHalaman(slug) {
   S.view = 'desa';
   ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = true);
   let h;
-  try { h = await run('apiHalaman', slug); } catch (e) { return halamanGagal(e.message); }
+  const hc = jparse(sget('hal_' + slug));
+  if (hc && hc.ID) { // alamat halaman jarang berubah: pakai data tersimpan, periksa ulang di latar belakang
+    h = hc;
+    quiet('apiHalaman', slug).then(n => { sset('hal_' + slug, JSON.stringify(n)); if (n.ID !== hc.ID || n.tipe !== hc.tipe) location.reload(); })
+      .catch(e => { if (/tidak ditemukan/.test(e.message)) { sdel('hal_' + slug); location.reload(); } });
+  } else {
+    try { h = await run('apiHalaman', slug); } catch (e) { return halamanGagal(e.message); }
+    sset('hal_' + slug, JSON.stringify(h));
+  }
   document.title = (h.tipe === 'admin' ? 'Admin Desa ' : h.tipe === 'pilih' ? 'Bilik Suara Desa ' : 'Desa ') + h.Nama + ' — Pilkades Serentak';
   if (h.tipe === 'pilih') return mulaiPilihDesa(h);
   return h.tipe === 'admin' ? mulaiAdminDesa(h) : mulaiPublikDesa(h);
@@ -1486,7 +1526,8 @@ async function mulaiPublikDesa(h) {
   S.dvMode = 'publik'; S.dvId = h.ID;
   $('#v-desa').hidden = false;
   ensureCd();
-  await refreshDv(false);
+  const pc = jparse(sget('pubc_' + h.ID)); // tampilkan data terakhir langsung, lalu segarkan
+  if (pc && pc.desa) { S.dv = pc; S.off = 0; drawDv(); await refreshDv(true); } else await refreshDv(false);
   S.dvT = setInterval(() => { if (!document.hidden) refreshDv(true); }, 10000);
 }
 function mulaiAdminDesa(h) {
@@ -1595,8 +1636,10 @@ function mulaiPilihDesa(h) {
   const hal = (new URLSearchParams(location.search).get('p') || '').trim().toLowerCase();
   if (hal) { S.kodeAwal = kode; history.replaceState(null, '', BASE + hal); return mulaiHalaman(hal); } // dari 404.html (kode QR ikut diteruskan)
   if (kode) return mulaiPemilih(kode);
+  if (S.token && sget('view') === 'admin') { loadPub(true); return go('admin'); } // kembali ke panel admin setelah refresh (tanpa menunggu data publik)
+  const ph = jparse(sget('pubh'));
+  if (ph && ph.desa) { S.pub = ph; renderDash(); loadPub(true).then(renderDash); return; } // data terakhir tampil dulu
   await loadPub();
-  if (S.token && sget('view') === 'admin') return go('admin'); // kembali ke panel admin setelah refresh
   renderDash();
 })();
 </script>
