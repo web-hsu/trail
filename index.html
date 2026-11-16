@@ -623,10 +623,10 @@ function drawLogin() {
   $('#lg').onclick = masuk; $('#pin').onkeydown = e => { if (e.key === 'Enter') masuk(); };
 }
 function tabsFor() {
-  if (S.fixDesa) return [['dash', 'Dashboard'], ['pemilih', 'Pemilih & Undangan'], ['set', 'Akun']];
+  if (S.fixDesa) return [['dash', 'Dashboard'], ['pemilih', 'Data Pemilih'], ['set', 'Akun']];
   return S.sesi && S.sesi.peran === 'super'
-    ? [['desa', 'Desa'], ['tps', 'Atur TPS'], ['calon', 'Calon'], ['admin', 'Admin Desa'], ['pemilih', 'Pemilih & Undangan'], ['rekap', 'Rekap Suara'], ['set', 'Pengaturan']]
-    : [['pemilih', 'Pemilih & Undangan'], ['set', 'Akun Saya']];
+    ? [['desa', 'Desa'], ['tps', 'Atur TPS'], ['calon', 'Calon'], ['admin', 'Admin Desa'], ['pemilih', 'Data Pemilih'], ['rekap', 'Rekap Suara'], ['set', 'Pengaturan']]
+    : [['pemilih', 'Data Pemilih'], ['set', 'Akun Saya']];
 }
 async function renderAdmin() {
   if (!S.token) return drawLogin();
@@ -1136,7 +1136,7 @@ function dvHtml(o, adm) {
       : `<div class="dvp candp"><h3 class="dvt">Calon Kepala Desa</h3>${n ? `<div class="cands" style="--n:${kolom};--r:${Math.ceil(n / 3) || 1}">${o.calon.map(c => candCard(c, true)).join('')}</div>` : '<div style="opacity:.8">Belum ada calon.</div>'}</div>`;
     return `<div class="dv pub">
       <div class="dvh"><div><small>Pemilihan Kepala Desa Serentak</small><h1>Desa ${esc(o.desa.Nama)}</h1><small>${esc(sub)}</small></div>
-        <div class="row"><span class="dvb">${stLabel(o.status)}</span><a class="btn sec sm" href="${esc(BASE)}">← Kecamatan</a><button class="btn sec sm" onclick="document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()">⛶ Layar penuh</button></div></div>
+        <div class="row"><span class="dvb">${stLabel(o.status)}</span><button class="btn sec sm" onclick="document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen()">⛶ Layar penuh</button></div></div>
       <div class="pubmain"><div class="pubL">
         <div class="dvp">${cd}</div>
         <div class="dvs">
@@ -1157,8 +1157,7 @@ function dvHtml(o, adm) {
     <div class="dvp"><h3 class="dvt">Rangkuman TPS (${o.tps.length})</h3>${tps}
       ${adm && o.tanpaTps ? `<div class="msg warn" style="margin-top:10px">${o.tanpaTps} pemilih belum masuk TPS manapun (RT-nya belum diatur ke TPS oleh Admin Kecamatan).</div>` : ''}</div>
     ${o.hasil ? hasilHtml(o.hasil) : ''}
-    ${adm ? '' : `<div><h3 class="dvt">Calon Kepala Desa</h3>${o.calon.length ? `<div class="cands">${o.calon.map(candCard).join('')}</div>` : '<div style="opacity:.8">Belum ada calon.</div>'}</div>
-      <div style="text-align:center;opacity:.75;margin-top:auto"><a href="${esc(BASE)}" style="color:#fff">← Dashboard Kecamatan</a></div>`}
+    ${adm ? '' : `<div><h3 class="dvt">Calon Kepala Desa</h3>${o.calon.length ? `<div class="cands">${o.calon.map(candCard).join('')}</div>` : '<div style="opacity:.8">Belum ada calon.</div>'}</div>`}
   </div>`;
 }
 /** Kontrol Admin Desa. Jadwal sudah diatur Admin Kecamatan -> pemilihan dibuka/ditutup otomatis, tombol Mulai tidak ada;
@@ -1206,7 +1205,7 @@ function halamanGagal(msg) {
   document.body.classList.remove('fs'); document.body.classList.add('pemilih');
   ['dash', 'admin'].forEach(x => $('#v-' + x).hidden = true);
   $('#v-desa').hidden = false;
-  $('#v-desa').innerHTML = `<div class="vstat card"><div class="bigic">🔎</div><h2>Halaman tidak tersedia</h2><p>${esc(msg)}</p><a class="btn" href="${esc(BASE)}">Ke Dashboard Kecamatan</a></div>`;
+  $('#v-desa').innerHTML = `<div class="vstat card"><div class="bigic">🔎</div><h2>Halaman tidak tersedia</h2><p>${esc(msg)}</p></div>`;
 }
 async function mulaiHalaman(slug) {
   S.view = 'desa';
